@@ -47,6 +47,13 @@ env/
 .coverage
 htmlcov/
 
+# Node dependencies and build outputs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
 # OS Specific
 .DS_Store
 Thumbs.db
+
