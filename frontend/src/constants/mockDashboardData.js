@@ -1,0 +1,207 @@
+// Static Mock Data for Calibo AI Academy Inventory Management Dashboard UI
+// Note: This is UI-only temporary demonstration data. Backend will be the single source of truth.
+
+export const MOCK_SUMMARY_METRICS = [
+  {
+    id: 'total-items',
+    label: 'Total Items',
+    value: '1,248',
+    subtext: 'Active catalog SKUs',
+    icon: 'Package',
+    color: 'primary',
+  },
+  {
+    id: 'available-stock',
+    label: 'Available Stock',
+    value: '42,850',
+    subtext: 'Units across 4 warehouses',
+    icon: 'Warehouse',
+    color: 'success',
+  },
+  {
+    id: 'stock-value',
+    label: 'Stock Value',
+    value: '₹18,45,200',
+    subtext: 'Computed via WAC valuation',
+    icon: 'IndianRupee',
+    color: 'info',
+  },
+  {
+    id: 'todays-inward',
+    label: "Today's Inward",
+    value: '+850',
+    subtext: '5 receipts recorded today',
+    icon: 'ArrowDownLeft',
+    color: 'success',
+  },
+  {
+    id: 'todays-outward',
+    label: "Today's Outward",
+    value: '-420',
+    subtext: '8 dispatches issued today',
+    icon: 'ArrowUpRight',
+    color: 'warning',
+  },
+  {
+    id: 'distributed-qty',
+    label: 'Distributed Quantity',
+    value: '1,150',
+    subtext: 'Inter-branch location transfers',
+    icon: 'GitFork',
+    color: 'neutral',
+  },
+];
+
+export const MOCK_STOCK_ALERTS = [
+  {
+    id: 'ALT-001',
+    itemCode: 'ITM-SKU-104',
+    itemName: 'Industrial Safety Helmet - Red',
+    location: 'Main Warehouse (WH-01)',
+    availableStock: 12,
+    minimumLevel: 50,
+    status: 'Low Stock',
+  },
+  {
+    id: 'ALT-002',
+    itemCode: 'ITM-SKU-209',
+    itemName: 'Heavy Duty Power Cable 10m',
+    location: 'Branch Store A (LOC-02)',
+    availableStock: 0,
+    minimumLevel: 25,
+    status: 'Out of Stock',
+  },
+  {
+    id: 'ALT-003',
+    itemCode: 'ITM-SKU-312',
+    itemName: 'Hydraulic Seals Kit - Type B',
+    location: 'Distribution Center (LOC-03)',
+    availableStock: 8,
+    minimumLevel: 30,
+    status: 'Low Stock',
+  },
+  {
+    id: 'ALT-004',
+    itemCode: 'ITM-SKU-405',
+    itemName: 'Digital Multimeter Pro V2',
+    location: 'Quality Control Lab (LOC-04)',
+    availableStock: 0,
+    minimumLevel: 10,
+    status: 'Out of Stock',
+  },
+];
+
+export const MOCK_RECENT_TRANSACTIONS = [
+  {
+    id: 'TXN-9041',
+    transactionType: 'INWARD',
+    reference: 'PO-2026-881',
+    itemName: 'Copper Wire Spool 50m',
+    location: 'Main Warehouse (WH-01)',
+    quantity: '+500',
+    date: '2026-09-04 14:30',
+    status: 'Completed',
+  },
+  {
+    id: 'TXN-9040',
+    transactionType: 'OUTWARD',
+    reference: 'SO-2026-412',
+    itemName: 'Industrial Safety Helmet - Red',
+    location: 'Main Warehouse (WH-01)',
+    quantity: '-150',
+    date: '2026-09-04 12:15',
+    status: 'Completed',
+  },
+  {
+    id: 'TXN-9039',
+    transactionType: 'ADJUSTMENT',
+    reference: 'ADJ-AUD-049',
+    itemName: 'Hydraulic Seals Kit - Type B',
+    location: 'Distribution Center (LOC-03)',
+    quantity: '-5',
+    date: '2026-09-04 11:00',
+    status: 'Completed',
+  },
+  {
+    id: 'TXN-9038',
+    transactionType: 'RETURN',
+    reference: 'RET-CUST-104',
+    itemName: 'Digital Multimeter Pro V2',
+    location: 'Branch Store A (LOC-02)',
+    quantity: '+2',
+    date: '2026-09-04 09:45',
+    status: 'Completed',
+  },
+  {
+    id: 'TXN-9037',
+    transactionType: 'OPENING',
+    reference: 'INIT-2026-001',
+    itemName: 'Pneumatic Valves 1/2 Inch',
+    location: 'Quality Control Lab (LOC-04)',
+    quantity: '+300',
+    date: '2026-09-03 17:00',
+    status: 'Completed',
+  },
+];
+
+export const MOCK_CATEGORY_STOCK = [
+  {
+    id: 'CAT-01',
+    categoryName: 'Electrical & Hardware',
+    totalItems: 420,
+    availableStock: '18,500 units',
+    stockValue: '₹8,20,000',
+  },
+  {
+    id: 'CAT-02',
+    categoryName: 'Industrial Safety Gear',
+    totalItems: 280,
+    availableStock: '12,100 units',
+    stockValue: '₹4,85,200',
+  },
+  {
+    id: 'CAT-03',
+    categoryName: 'Hydraulics & Seals',
+    totalItems: 310,
+    availableStock: '8,450 units',
+    stockValue: '₹3,90,000',
+  },
+  {
+    id: 'CAT-04',
+    categoryName: 'Office & Packaging Supplies',
+    totalItems: 238,
+    availableStock: '3,800 units',
+    stockValue: '₹1,50,000',
+  },
+];
+
+export const MOCK_LOCATION_STOCK = [
+  {
+    id: 'LOC-01',
+    locationName: 'Main Warehouse (WH-01)',
+    itemsCount: 850,
+    availableStock: '28,400 units',
+    stockValue: '₹12,40,000',
+  },
+  {
+    id: 'LOC-02',
+    locationName: 'Branch Store A (LOC-02)',
+    itemsCount: 210,
+    availableStock: '7,200 units',
+    stockValue: '₹3,15,000',
+  },
+  {
+    id: 'LOC-03',
+    locationName: 'Distribution Center (LOC-03)',
+    itemsCount: 120,
+    availableStock: '5,150 units',
+    stockValue: '₹2,10,200',
+  },
+  {
+    id: 'LOC-04',
+    locationName: 'Quality Control Lab (LOC-04)',
+    itemsCount: 68,
+    availableStock: '2,100 units',
+    stockValue: '₹80,000',
+  },
+];

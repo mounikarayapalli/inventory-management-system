@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.api.deps import require_roles
 
 from app.api.v1.endpoints import (
     auth,
@@ -41,8 +42,12 @@ api_router.include_router(locations.router, prefix="/locations", tags=["Location
 api_router.include_router(transactions.router, tags=["Inventory Transactions"])
 
 # 8. Stock
-api_router.include_router(stock.router, prefix="/stock", tags=["Stock"])
-
+api_router.include_router(
+    stock.router,
+    prefix="/stock",
+    tags=["Stock"],
+    dependencies=[Depends(require_roles("admin", "Stock Manager"))],
+)
 # 9. Dashboard
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 
