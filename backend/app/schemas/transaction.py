@@ -12,7 +12,7 @@ class OpeningStockRequest(BaseModel):
     item_id: int = Field(..., description="Target item ID")
     location_id: int = Field(..., description="Target storage location ID")
     quantity: Decimal = Field(..., gt=0, description="Initial stock quantity")
-    unit_cost: Decimal = Field(default=Decimal("0.00"), ge=0.0, description="Per-unit acquisition cost")
+    unit_cost: Optional[Decimal] = Field(default=None, ge=0.0, description="Per-unit acquisition cost")
     opening_date: Optional[date] = Field(default=None, description="Opening date")
     remarks: Optional[str] = Field(default=None, max_length=255, description="Audit notes")
 
@@ -38,8 +38,8 @@ class OutwardRequest(BaseModel):
     item_id: int = Field(..., description="Target item ID")
     location_id: int = Field(..., description="Source storage location ID")
     quantity: Decimal = Field(..., gt=0, description="Quantity issued")
+    issued_to: str = Field(..., min_length=1, max_length=150, description="Recipient individual or team")
     outward_no: Optional[str] = Field(default=None, max_length=50, description="Dispatch / outward number")
-    issued_to: Optional[str] = Field(default=None, max_length=150, description="Recipient individual or team")
     purpose: Optional[str] = Field(default=None, max_length=255, description="Purpose of issue")
     outward_date: Optional[date] = Field(default=None, description="Outward dispatch date")
     reference_no: Optional[str] = Field(default=None, max_length=100, description="Dispatch / order reference")
@@ -49,11 +49,7 @@ class OutwardRequest(BaseModel):
 class DistributionRequest(BaseModel):
     """Schema for recording distribution line item linked to an outward transaction."""
 
-    outward_id: Optional[int] = Field(default=None, description="Related outward transaction ID")
-    item_id: int = Field(..., description="Target item ID")
-    location_id: Optional[int] = Field(default=None, description="Storage location ID")
-    source_location_id: Optional[int] = Field(default=None, description="Source location ID (backward-compatible alias)")
-    destination_location_id: Optional[int] = Field(default=None, description="Destination location ID")
+    outward_id: int = Field(..., description="Related outward transaction ID")
     quantity: Decimal = Field(..., gt=0, description="Quantity to distribute")
     recipient: Optional[str] = Field(default=None, max_length=150, description="Recipient department or person")
     batch: Optional[str] = Field(default=None, max_length=100, description="Batch number")
@@ -69,9 +65,9 @@ class ReturnRequest(BaseModel):
     item_id: int = Field(..., description="Target item ID")
     location_id: int = Field(..., description="Storage location receiving the return")
     quantity: Decimal = Field(..., gt=0, description="Quantity returned")
-    source: Optional[str] = Field(default=None, max_length=150, description="Originating return source")
+    source: str = Field(..., min_length=1, max_length=150, description="Originating return source")
+    reason: str = Field(..., min_length=1, max_length=255, description="Reason for return")
     return_type: str = Field(default="customer", description="Type of return: 'customer', 'supplier', or 'internal'")
-    reason: Optional[str] = Field(default=None, max_length=255, description="Reason for return")
     return_date: Optional[date] = Field(default=None, description="Return date")
     remarks: Optional[str] = Field(default=None, max_length=255, description="Notes")
 

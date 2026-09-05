@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from app.models.opening_stock import OpeningStock
     from app.models.inward_transaction import InwardTransaction
     from app.models.outward_transaction import OutwardTransaction
-    from app.models.distribution_transaction import DistributionTransaction
     from app.models.return_transaction import ReturnTransaction
     from app.models.stock_adjustment import StockAdjustment
     from app.models.stock_movement import StockMovement
@@ -55,7 +54,6 @@ class Item(Base):
     opening_stocks: Mapped[List["OpeningStock"]] = relationship("OpeningStock", back_populates="item")
     inward_transactions: Mapped[List["InwardTransaction"]] = relationship("InwardTransaction", back_populates="item")
     outward_transactions: Mapped[List["OutwardTransaction"]] = relationship("OutwardTransaction", back_populates="item")
-    distribution_transactions: Mapped[List["DistributionTransaction"]] = relationship("DistributionTransaction", back_populates="item")
     return_transactions: Mapped[List["ReturnTransaction"]] = relationship("ReturnTransaction", back_populates="item")
     stock_adjustments: Mapped[List["StockAdjustment"]] = relationship("StockAdjustment", back_populates="item")
     stock_movements: Mapped[List["StockMovement"]] = relationship("StockMovement", back_populates="item")

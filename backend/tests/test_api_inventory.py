@@ -203,6 +203,7 @@ class TestInventoryAPI(unittest.TestCase):
                 "item_id": 1,
                 "location_id": 1,
                 "quantity": 100,
+                "issued_to": "Engineering Dept",
                 "created_by": 1,
             },
         )
@@ -212,6 +213,7 @@ class TestInventoryAPI(unittest.TestCase):
         self.assertEqual(err_body["error"]["code"], "BAD_REQUEST")
 
         # 5. Distribution: 30 units linked to existing Outward (OUT-2026-001)
+        # Verify request does NOT require item_id or location_id
         db = TestingSessionLocal()
         movements_before = len(db.query(StockMovement).all())
         db.close()
@@ -220,8 +222,6 @@ class TestInventoryAPI(unittest.TestCase):
             "/api/distributions",
             json={
                 "outward_id": outward_id,
-                "item_id": 1,
-                "location_id": 1,
                 "quantity": 30,
                 "recipient": "Team Alpha",
                 "department": "Engineering",
@@ -231,6 +231,10 @@ class TestInventoryAPI(unittest.TestCase):
             },
         )
         self.assertEqual(res.status_code, 201, res.text)
+        dist_res = res.json()
+        # Verify response returns item_id and location_id derived from parent outward
+        self.assertEqual(dist_res["item_id"], 1)
+        self.assertEqual(dist_res["location_id"], 1)
 
         # CRITICAL VERIFICATION:
         # Distribution must NOT deduct stock separately and must NOT create a new stock movement
@@ -248,8 +252,6 @@ class TestInventoryAPI(unittest.TestCase):
             "/api/distributions",
             json={
                 "outward_id": outward_id,
-                "item_id": 1,
-                "location_id": 1,
                 "quantity": 40,
                 "recipient": "Team Beta",
                 "department": "QA",
@@ -345,10 +347,64 @@ class TestInventoryAPI(unittest.TestCase):
                 "item_id": 1,
                 "location_id": 1,
                 "quantity": 5,
+                "issued_to": "Engineering Dept",
             },
         )
         self.assertEqual(res.status_code, 409)
         self.assertEqual(res.json()["error"]["code"], "RESOURCE_CONFLICT")
+
+        # Missing issued_to on outward -> 422 Unprocessable Entity
+        res = client.post(
+            "/api/outward",
+            json={
+                "outward_no": "OUT-NO-ISSUED-TO",
+                "item_id": 1,
+                "location_id": 1,
+                "quantity": 5,
+            },
+        )
+        self.assertEqual(res.status_code, 422)
+
+        # Missing return source -> 422 Unprocessable Entity
+        res = client.post(
+            "/api/returns",
+            json={
+                "item_id": 1,
+                "location_id": 1,
+                "quantity": 5,
+                "reason": "Test reason",
+            },
+        )
+        self.assertEqual(res.status_code, 422)
+
+        # Missing return reason -> 422 Unprocessable Entity
+        res = client.post(
+            "/api/returns",
+            json={
+                "item_id": 1,
+                "location_id": 1,
+                "quantity": 5,
+                "source": "Test source",
+            },
+        )
+        self.assertEqual(res.status_code, 422)
+
+        # Opening stock with unit_cost=None succeeds (unit_cost nullable)
+        res = client.post(
+            "/api/opening-stock",
+            json={
+                "item_id": 1,
+                "location_id": 2,
+                "quantity": 15,
+                "unit_cost": None,
+                "remarks": "Null unit cost opening",
+                "created_by": 1,
+            },
+        )
+        self.assertEqual(res.status_code, 201, res.text)
+        op_data = res.json()
+        self.assertIsNone(op_data["unit_cost"])
+        self.assertIsNone(op_data["total_cost"])
 
         # Invalid quantity <= 0 -> 400 or 422
         res = client.post(
@@ -371,6 +427,7 @@ class TestInventoryAPI(unittest.TestCase):
                 "item_id": 9999,
                 "location_id": 1,
                 "quantity": 5,
+                "issued_to": "Engineering Dept",
             },
         )
         self.assertEqual(res.status_code, 404)
@@ -383,6 +440,7 @@ class TestInventoryAPI(unittest.TestCase):
                 "item_id": 1,
                 "location_id": 9999,
                 "quantity": 5,
+                "issued_to": "Engineering Dept",
             },
         )
         self.assertEqual(res.status_code, 404)

@@ -82,14 +82,14 @@ class DashboardService:
             select(func.coalesce(func.sum(InwardTransaction.quantity), 0)).where(
                 InwardTransaction.inward_date == today
             )
-        )
+        ) or Decimal("0.00")
         today_inward = quantize_quantity(to_decimal(today_inward_sum))
 
         today_outward_sum = db.scalar(
             select(func.coalesce(func.sum(OutwardTransaction.quantity), 0)).where(
                 OutwardTransaction.outward_date == today
             )
-        )
+        ) or Decimal("0.00")
         today_outward = quantize_quantity(to_decimal(today_outward_sum))
 
         today_dist_sum = db.scalar(

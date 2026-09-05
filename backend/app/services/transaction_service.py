@@ -84,7 +84,11 @@ class TransactionService:
         - Reject duplicate opening stock for the same Item + Location.
         """
         qty = validate_positive_quantity(payload.quantity, "Opening stock quantity")
-        cost = validate_non_negative_cost(payload.unit_cost, "Opening stock unit cost")
+        cost = (
+            validate_non_negative_cost(payload.unit_cost, "Opening stock unit cost")
+            if payload.unit_cost is not None
+            else None
+        )
         item, location = self._validate_item_and_location(db, payload.item_id, payload.location_id)
         user_id = self._ensure_user_exists(db, created_by or getattr(payload, "created_by", None))
 
@@ -121,13 +125,15 @@ class TransactionService:
             movement_type=MovementType.OPENING.value,
             quantity=qty,
             reference_id=opening_entry.opening_stock_id,
-            movement_date=datetime.now(timezone.utc),
+            movement_date=datetime.now(),
             created_by=user_id,
             remarks=payload.remarks or "Opening stock balance",
         )
         db.add(movement)
         db.commit()
         db.refresh(opening_entry)
+
+        total_cost = quantize_currency(qty * cost) if cost is not None else None
 
         return TransactionResponse(
             id=opening_entry.opening_stock_id,
@@ -138,7 +144,7 @@ class TransactionService:
             reference_no=payload.remarks or "OPENING-STOCK",
             status="completed",
             unit_cost=opening_entry.unit_cost,
-            total_cost=quantize_currency(qty * cost),
+            total_cost=total_cost,
             created_at=opening_entry.created_at,
         )
 
@@ -158,10 +164,11 @@ class TransactionService:
         cost = validate_non_negative_cost(payload.unit_cost, "Inward unit cost")
         total_cost = compute_inward_total_cost(qty, cost, payload.total_cost)
 
-        item, location = self._validate_item_and_location(db, payload.item_id, payload.location_id)
         supplier = db.get(Supplier, payload.supplier_id)
         if not supplier or not supplier.is_active:
             raise NotFoundException(f"Active supplier with ID {payload.supplier_id} not found.")
+
+        item, location = self._validate_item_and_location(db, payload.item_id, payload.location_id)
 
         user_id = self._ensure_user_exists(db, created_by or getattr(payload, "created_by", None))
         inward_no = payload.inward_no or f"INW-{int(datetime.now(timezone.utc).timestamp())}"
@@ -197,7 +204,7 @@ class TransactionService:
             movement_type=MovementType.INWARD.value,
             quantity=qty,
             reference_id=inward_entry.inward_id,
-            movement_date=datetime.now(timezone.utc),
+            movement_date=datetime.now(),
             created_by=user_id,
             remarks=f"Inward receipt {inward_no}",
         )
@@ -215,42 +222,40 @@ class TransactionService:
             status="completed",
             unit_cost=inward_entry.unit_cost,
             total_cost=inward_entry.total_cost,
-            created_at=inward_entry.created_at,
+            created_at=datetime.now(timezone.utc),
         )
 
     def record_outward(
         self, db: Session, payload: OutwardRequest, created_by: Optional[int] = None
     ) -> TransactionResponse:
-        """Record outbound stock issue or dispatch.
+        """Record outbound stock issue, dispatch, or customer delivery.
 
         Rules:
         - Quantity must be positive (> 0).
-        - Requested quantity must NOT exceed available on-hand stock for that Item + Location.
-        - Negative stock must never be allowed.
-        - Outward valuation uses current WAC for that Item + Location.
+        - Requested quantity cannot exceed available stock at source location.
         - Decreases available stock.
         - Creates a StockMovement with movement_type = OUTWARD.
+        - Unit cost and total valuation are computed using current WAC.
         """
         qty = validate_positive_quantity(payload.quantity, "Outward quantity")
         item, location = self._validate_item_and_location(db, payload.item_id, payload.location_id)
 
-        # Check available stock at this specific location
+        # Validate sufficient stock
         available_stock = stock_service.get_available_stock(db, item.item_id, location.location_id)
         validate_outward_stock(available_stock, qty)
-
-        # Retrieve current WAC for valuation
-        current_wac = stock_service.get_wac(db, item.item_id, location.location_id)
-        total_valuation = quantize_currency(qty * current_wac)
 
         user_id = self._ensure_user_exists(db, created_by or getattr(payload, "created_by", None))
         outward_no = payload.outward_no or f"OUT-{int(datetime.now(timezone.utc).timestamp())}"
 
-        # Uniqueness check for outward_no
         existing_out = db.scalars(
             select(OutwardTransaction).where(OutwardTransaction.outward_no == outward_no)
         ).first()
         if existing_out:
             raise ConflictException(f"Outward dispatch number '{outward_no}' already exists.")
+
+        # Compute valuation from current WAC
+        current_wac = stock_service.get_wac(db, item.item_id, location.location_id)
+        total_valuation = quantize_currency(qty * current_wac)
 
         outward_date = payload.outward_date or date.today()
 
@@ -262,7 +267,7 @@ class TransactionService:
             issued_to=payload.issued_to,
             purpose=payload.purpose,
             outward_date=outward_date,
-            remarks=payload.remarks or payload.reference_no,
+            remarks=payload.remarks,
             created_by=user_id,
         )
         db.add(outward_entry)
@@ -275,7 +280,7 @@ class TransactionService:
             movement_type=MovementType.OUTWARD.value,
             quantity=qty,
             reference_id=outward_entry.outward_id,
-            movement_date=datetime.now(timezone.utc),
+            movement_date=datetime.now(),
             created_by=user_id,
             remarks=f"Outward issue {outward_no}",
         )
@@ -310,25 +315,13 @@ class TransactionService:
         """
         qty = validate_positive_quantity(payload.quantity, "Distribution quantity")
 
-        if payload.outward_id is None:
-            raise BadRequestException("A valid outward_id is required to record a distribution.")
-
         outward = db.get(OutwardTransaction, payload.outward_id)
         if not outward:
             raise NotFoundException(f"Related outward transaction with ID {payload.outward_id} not found.")
 
-        # Ensure item matches the parent outward issue
-        if outward.item_id != payload.item_id:
-            raise BadRequestException(
-                f"Distribution item_id ({payload.item_id}) does not match parent outward item_id ({outward.item_id})."
-            )
-
-        # Determine location (fallback to outward issue location if not specified)
-        location_id = payload.location_id or payload.source_location_id or outward.location_id
-        if location_id != outward.location_id:
-            raise BadRequestException(
-                f"Distribution location_id ({location_id}) must match outward origin location ({outward.location_id})."
-            )
+        # Derive item_id and location_id from parent outward
+        item_id = outward.item_id
+        location_id = outward.location_id
 
         # Validate that cumulative distributions do not exceed outward issue quantity
         already_distributed = sum(
@@ -341,8 +334,6 @@ class TransactionService:
 
         dist_entry = DistributionTransaction(
             outward_id=outward.outward_id,
-            item_id=outward.item_id,
-            location_id=location_id,
             quantity=qty,
             recipient=payload.recipient,
             batch=payload.batch,
@@ -359,19 +350,19 @@ class TransactionService:
         db.refresh(dist_entry)
 
         # Retrieve current WAC for valuation reference
-        current_wac = stock_service.get_wac(db, outward.item_id, location_id)
+        current_wac = stock_service.get_wac(db, item_id, location_id)
 
         return TransactionResponse(
             id=dist_entry.distribution_id,
             transaction_type="distribution",
-            item_id=dist_entry.item_id,
-            location_id=dist_entry.location_id,
+            item_id=item_id,
+            location_id=location_id,
             quantity=dist_entry.quantity,
             reference_no=f"DIST-OUT-{outward.outward_id}",
             status="completed",
             unit_cost=current_wac,
             total_cost=quantize_currency(qty * current_wac),
-            created_at=datetime.now(timezone.utc),
+            created_at=dist_entry.created_at,
         )
 
     def record_return(
@@ -408,7 +399,7 @@ class TransactionService:
             movement_type=MovementType.RETURN.value,
             quantity=qty,
             reference_id=return_entry.return_id,
-            movement_date=datetime.now(timezone.utc),
+            movement_date=datetime.now(),
             created_by=user_id,
             remarks=payload.reason or f"Return from {payload.source or 'customer'}",
         )
@@ -470,7 +461,7 @@ class TransactionService:
             movement_type=MovementType.ADJUSTMENT.value,
             quantity=delta,
             reference_id=adj_entry.adjustment_id,
-            movement_date=datetime.now(timezone.utc),
+            movement_date=datetime.now(),
             created_by=user_id,
             remarks=payload.reason,
         )

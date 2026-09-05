@@ -32,7 +32,7 @@ class OutwardTransaction(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("items.item_id"), nullable=False)
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.location_id"), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    issued_to: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    issued_to: Mapped[str] = mapped_column(String(150), nullable=False)
     purpose: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     outward_date: Mapped[date] = mapped_column(Date, nullable=False)
     remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

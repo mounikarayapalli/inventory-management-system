@@ -31,7 +31,7 @@ class OpeningStock(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("items.item_id"), nullable=False)
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.location_id"), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    unit_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), nullable=True)
     opening_date: Mapped[date] = mapped_column(Date, nullable=False)
     remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)

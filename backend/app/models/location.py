@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from app.models.opening_stock import OpeningStock
     from app.models.inward_transaction import InwardTransaction
     from app.models.outward_transaction import OutwardTransaction
-    from app.models.distribution_transaction import DistributionTransaction
     from app.models.return_transaction import ReturnTransaction
     from app.models.stock_adjustment import StockAdjustment
     from app.models.stock_movement import StockMovement
@@ -28,7 +27,6 @@ class Location(Base):
     opening_stocks: Mapped[List["OpeningStock"]] = relationship("OpeningStock", back_populates="location")
     inward_transactions: Mapped[List["InwardTransaction"]] = relationship("InwardTransaction", back_populates="location")
     outward_transactions: Mapped[List["OutwardTransaction"]] = relationship("OutwardTransaction", back_populates="location")
-    distribution_transactions: Mapped[List["DistributionTransaction"]] = relationship("DistributionTransaction", back_populates="location")
     return_transactions: Mapped[List["ReturnTransaction"]] = relationship("ReturnTransaction", back_populates="location")
     stock_adjustments: Mapped[List["StockAdjustment"]] = relationship("StockAdjustment", back_populates="location")
     stock_movements: Mapped[List["StockMovement"]] = relationship("StockMovement", back_populates="location")

@@ -262,6 +262,7 @@ class TestDashboardAndReportsAPI(unittest.TestCase):
                 "item_id": 1,
                 "location_id": 1,
                 "quantity": 100,
+                "issued_to": "Engineering Dept",
                 "created_by": 1,
             },
         )
@@ -272,8 +273,6 @@ class TestDashboardAndReportsAPI(unittest.TestCase):
             "/api/distributions",
             json={
                 "outward_id": outward_id,
-                "item_id": 1,
-                "location_id": 1,
                 "quantity": 30,
                 "recipient": "Team Lead Alpha",
                 "department": "Engineering",

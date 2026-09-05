@@ -29,8 +29,8 @@ class ReturnTransaction(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("items.item_id"), nullable=False)
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.location_id"), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    source: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
-    reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source: Mapped[str] = mapped_column(String(150), nullable=False)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
     return_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
 
