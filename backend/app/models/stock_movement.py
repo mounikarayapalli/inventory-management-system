@@ -49,7 +49,7 @@ class StockMovement(Base):
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.location_id"), nullable=False)
     movement_type: Mapped[str] = mapped_column(String(30), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    reference_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    reference_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     movement_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
