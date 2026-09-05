@@ -53,7 +53,7 @@ class StockMovementResponse(BaseModel):
     location_name: Optional[str] = Field(default=None, description="Location name")
     movement_type: str = Field(..., description="Type of movement: OPENING, INWARD, OUTWARD, RETURN, ADJUSTMENT")
     quantity: Decimal = Field(..., description="Quantity moved")
-    reference_id: Optional[int] = Field(default=None, description="Associated document ID")
+    reference_id: int = Field(..., description="Associated document ID")
     reference_no: Optional[str] = Field(default=None, description="Associated document or receipt reference")
     remarks: Optional[str] = Field(default=None, description="Remarks or notes")
     timestamp: datetime = Field(

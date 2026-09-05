@@ -44,7 +44,7 @@ class MovementReportItem(BaseModel):
     to_location: Optional[str] = Field(default=None, description="Target location alias")
     movement_type: str = Field(..., description="Movement operation type (OPENING, INWARD, OUTWARD, RETURN, ADJUSTMENT)")
     quantity: Decimal = Field(..., description="Transacted quantity")
-    reference_id: Optional[int] = Field(default=None, description="Reference entity ID")
+    reference_id: int = Field(..., description="Reference entity ID")
     reference_no: Optional[str] = Field(default=None, description="Document reference")
     created_by: int = Field(..., description="User ID who created movement")
     remarks: Optional[str] = Field(default=None, description="Movement remarks")
