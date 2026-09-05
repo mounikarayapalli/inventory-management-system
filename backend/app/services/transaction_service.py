@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import BadRequestException, ConflictException, NotFoundException
+from app.core.exceptions import BadRequestException, ConflictException, NotFoundException, UnauthorizedException
 from app.models.distribution_transaction import DistributionTransaction
 from app.models.inward_transaction import InwardTransaction
 from app.models.item import Item
@@ -46,16 +46,19 @@ class TransactionService:
     """Service handling atomic recording of inventory transactions and stock movements."""
 
     def _ensure_user_exists(self, db: Session, user_id: Optional[int]) -> int:
-        """Validate user ID exists or fallback to the primary system user."""
-        if user_id is not None:
-            user = db.get(User, user_id)
-            if user:
-                return user.user_id
-        # Fallback to the first available user in the system
-        first_user = db.scalars(select(User).order_by(User.user_id.asc())).first()
-        if first_user:
-            return first_user.user_id
-        return 1
+        """Validate that the authenticated user exists and is active."""
+        if user_id is None:
+            raise UnauthorizedException("Authenticated user is required.")
+
+        user = db.get(User, user_id)
+
+        if not user:
+            raise UnauthorizedException("Authenticated user not found.")
+
+        if not user.is_active:
+            raise UnauthorizedException("Authenticated user is inactive.")
+
+        return user.user_id
 
     def _validate_item_and_location(
         self, db: Session, item_id: int, location_id: int
