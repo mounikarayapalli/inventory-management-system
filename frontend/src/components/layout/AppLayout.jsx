@@ -2,39 +2,48 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import MobileBottomNav from './MobileBottomNav';
+import MobileQuickActionsSheet from './MobileQuickActionsSheet';
+import MobileMoreDrawer from './MobileMoreDrawer';
 
 export const AppLayout = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const location = useLocation();
 
-  // Close mobile drawer when route changes
+  // Close mobile overlays when route changes
   useEffect(() => {
-    setMobileOpen(false);
+    setMobileSidebarOpen(false);
+    setQuickActionsOpen(false);
+    setMoreDrawerOpen(false);
   }, [location.pathname]);
 
-  // Handle escape key to close mobile drawer
+  // Handle escape key to close mobile overlays
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && mobileOpen) {
-        setMobileOpen(false);
+      if (e.key === 'Escape') {
+        setMobileSidebarOpen(false);
+        setQuickActionsOpen(false);
+        setMoreDrawerOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mobileOpen]);
+  }, []);
 
   const handleToggleSidebar = () => {
-    setMobileOpen((prev) => !prev);
+    setMobileSidebarOpen((prev) => !prev);
   };
 
   const handleCloseSidebar = () => {
-    setMobileOpen(false);
+    setMobileSidebarOpen(false);
   };
 
   return (
     <div className="app-layout">
-      {/* Mobile Drawer Overlay Backdrop */}
-      {mobileOpen && (
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {mobileSidebarOpen && (
         <div
           className="sidebar-backdrop"
           onClick={handleCloseSidebar}
@@ -42,7 +51,7 @@ export const AppLayout = () => {
         />
       )}
 
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={handleCloseSidebar} />
+      <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={handleCloseSidebar} />
 
       <div className="app-main-wrapper">
         <Navbar onToggleSidebar={handleToggleSidebar} />
@@ -50,6 +59,22 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile App Shell Elements (< 768px) */}
+      <MobileBottomNav
+        onOpenQuickActions={() => setQuickActionsOpen(true)}
+        onOpenMoreDrawer={() => setMoreDrawerOpen(true)}
+      />
+
+      <MobileQuickActionsSheet
+        isOpen={quickActionsOpen}
+        onClose={() => setQuickActionsOpen(false)}
+      />
+
+      <MobileMoreDrawer
+        isOpen={moreDrawerOpen}
+        onClose={() => setMoreDrawerOpen(false)}
+      />
     </div>
   );
 };

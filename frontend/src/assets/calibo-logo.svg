@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
+  <defs>
+    <linearGradient id="caliboNavyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E2B88" />
+      <stop offset="100%" stop-color="#141E61" />
+    </linearGradient>
+    <linearGradient id="caliboTealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00B4A2" />
+      <stop offset="100%" stop-color="#008375" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer Ring 'C' embracing inner 'a' -->
+  <path d="M 150 25 
+           A 125 125 0 1 0 250 215 
+           L 205 185 
+           A 75 75 0 1 1 150 75 
+           A 75 75 0 0 1 215 115 
+           L 258 85 
+           A 125 125 0 0 0 150 25 Z" 
+        fill="url(#caliboNavyGrad)" />
+        
+  <!-- Inner Circle 'a' Core -->
+  <circle cx="150" cy="150" r="45" fill="url(#caliboNavyGrad)" />
+  
+  <!-- Calibo Teal Leaf / Teardrop Accent -->
+  <path d="M 215 150 
+           C 215 110, 260 115, 265 150 
+           C 260 185, 215 190, 215 150 Z" 
+        fill="url(#caliboTealGrad)" />
+</svg>

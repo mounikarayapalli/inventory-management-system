@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useRole } from '../../context/RoleContext';
+import CaliboLogo from '../common/CaliboLogo';
 
 export const Navbar = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -66,7 +67,8 @@ export const Navbar = ({ onToggleSidebar }) => {
           <Menu size={20} />
         </button>
 
-        <div className="navbar-context-title">
+        <div className="navbar-context-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CaliboLogo size="sm" layout="icon" />
           <span className="context-brand">Calibo AI Academy</span>
           <span className="context-divider">/</span>
           <span className="context-app">Inventory Manager</span>

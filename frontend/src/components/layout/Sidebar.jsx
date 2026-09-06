@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { NAVIGATION_ITEMS } from '../../constants/navigation';
 
+import CaliboLogo from '../common/CaliboLogo';
+
 // Map string icon names to Lucide icons
 const iconMap = {
   LayoutDashboard,
@@ -87,13 +89,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }) => {
     >
       {/* Sidebar Header & Product Branding */}
       <div className="sidebar-header">
-        <div className="sidebar-brand-logo">
-          <Package size={20} />
-        </div>
-        <div className="sidebar-brand-text">
-          <span className="brand-title">Calibo AI Academy</span>
-          <span className="brand-subtitle">Inventory Management</span>
-        </div>
+        <CaliboLogo size="md" variant="auto" layout="horizontal" showSubtitle={true} />
         <button
           className="sidebar-close-mobile"
           onClick={onMobileClose}

@@ -20,6 +20,13 @@ export const authAPI = {
     return user;
   },
 
+  register: async (userData) => {
+    return await request('/auth/register', {
+      method: 'POST',
+      body: userData,
+    });
+  },
+
   logout: () => {
     removeToken();
     removeStoredUser();
