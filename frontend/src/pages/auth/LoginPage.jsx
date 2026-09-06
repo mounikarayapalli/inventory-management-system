@@ -64,7 +64,12 @@ export const LoginPage = () => {
       await login(username.trim(), password);
       navigate('/dashboard');
     } catch (err) {
-      setAuthError(err.message || 'Authentication failed. Please check your credentials.');
+      const msg = err.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('fetch') || err.status === 0) {
+        setAuthError('Unable to connect to the server. Please check that the inventory server is running.');
+      } else {
+        setAuthError(msg || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +137,12 @@ export const LoginPage = () => {
         confirm_password: '',
       });
     } catch (err) {
-      setAuthError(err.message || 'Registration failed. Username or email may already be registered.');
+      const msg = err.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('fetch') || err.status === 0) {
+        setAuthError('Unable to connect to the server. Please check that the inventory server is running.');
+      } else {
+        setAuthError(msg || 'Registration failed. Username or email may already be registered.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +207,7 @@ export const LoginPage = () => {
                   id="username-input"
                   type="text"
                   className={`form-control ${errors.username ? 'is-invalid' : ''}`}
-                  placeholder="admin@calibo.com"
+                  placeholder="Enter your email or username"
                   value={username}
                   disabled={submitting}
                   onChange={(e) => {
@@ -223,7 +233,7 @@ export const LoginPage = () => {
                   id="password-input"
                   type={showPassword ? 'text' : 'password'}
                   className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   disabled={submitting}
                   onChange={(e) => {
@@ -278,7 +288,7 @@ export const LoginPage = () => {
                 id="fullname-input"
                 type="text"
                 className={`form-control ${errors.full_name ? 'is-invalid' : ''}`}
-                placeholder="e.g. Sravya Arege"
+                placeholder="Enter your full name"
                 value={signupData.full_name}
                 disabled={submitting}
                 onChange={(e) => setSignupData({ ...signupData, full_name: e.target.value })}
@@ -300,7 +310,7 @@ export const LoginPage = () => {
                   id="signup-username"
                   type="text"
                   className={`form-control ${errors.username ? 'is-invalid' : ''}`}
-                  placeholder="e.g. sravya"
+                  placeholder="Enter a username"
                   value={signupData.username}
                   disabled={submitting}
                   onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
@@ -321,7 +331,7 @@ export const LoginPage = () => {
                   id="signup-email"
                   type="email"
                   className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                  placeholder="sravya@calibo.com"
+                  placeholder="name@company.com"
                   value={signupData.email}
                   disabled={submitting}
                   onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}

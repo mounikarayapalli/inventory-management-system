@@ -80,7 +80,11 @@ export async function request(endpoint, options = {}) {
     if (err instanceof APIError) {
       throw err;
     }
-    throw new APIError(err.message || 'Network request failed', 0, null);
+    const message =
+      err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.name === 'TypeError')
+        ? 'Unable to connect to the server. Please check that the inventory server is running.'
+        : err.message || 'Network request failed';
+    throw new APIError(message, 0, null);
   }
 }
 

@@ -37,15 +37,15 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configure CORS Middleware
-    if settings.BACKEND_CORS_ORIGINS:
-        application.add_middleware(
-            CORSMiddleware,
-            allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+    # Configure CORS Middleware for Local and LAN Team Testing
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS] if settings.BACKEND_CORS_ORIGINS else ["*"],
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Register centralized exception and error handlers
     register_exception_handlers(application)
