@@ -171,6 +171,15 @@ export const LoginPage = () => {
       <div className="gradient-wave-top-left" />
       <div className="gradient-wave-bottom-left" />
 
+      {/* Subtle Corporate Calibo Logo Background Watermark */}
+      <div className="calibo-auth-watermark" aria-hidden="true">
+        <img
+          src={caliboLogoMark}
+          alt=""
+          className="calibo-watermark-img"
+        />
+      </div>
+
       <div className="calibo-auth-container">
         {/* ========================================================================= */}
         {/* LEFT PANEL: BRANDING, 3D ILLUSTRATION & FEATURE BADGES */}

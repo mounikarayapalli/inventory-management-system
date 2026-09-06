@@ -1356,6 +1356,38 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
 }
 
+/* Subtle Corporate Calibo Logo Background Watermark (Auth Pages Only) */
+.calibo-auth-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 580px;
+  max-width: 75vw;
+  height: auto;
+  pointer-events: none;
+  opacity: 0.05;
+  z-index: 1;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calibo-watermark-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: grayscale(15%) drop-shadow(0 0 24px rgba(0, 180, 162, 0.15));
+}
+
+@media (max-width: 768px) {
+  .calibo-auth-watermark {
+    width: 340px;
+    opacity: 0.04;
+  }
+}
+
 .calibo-auth-container {
   display: flex;
   width: 100%;
