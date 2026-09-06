@@ -44,11 +44,44 @@ export const AvailableStockPage = () => {
     try {
       const [stockRes, itemsRes, locationsRes, categoriesRes] = await Promise.all([
         stockAPI.listStock(),
-        itemsAPI.listItems(),
-        locationsAPI.listLocations(),
-        categoriesAPI.listCategories(),
+        itemsAPI.listItems().catch(() => []),
+        locationsAPI.listLocations().catch(() => []),
+        categoriesAPI.listCategories().catch(() => []),
       ]);
-      setStockList(stockRes || []);
+
+      const itemsMap = new Map((itemsRes || []).map((i) => [i.item_id || i.id, i]));
+      const locsMap = new Map((locationsRes || []).map((l) => [l.location_id || l.id, l]));
+
+      // Normalize stock item properties for UI rendering
+      const normalizedStock = (stockRes || []).map((item) => {
+        const matchingItem = itemsMap.get(item.item_id) || {};
+        const matchingLoc = locsMap.get(item.location_id) || {};
+
+        const qty = Number(item.current_quantity ?? item.available_quantity ?? item.quantity_on_hand ?? 0);
+        const wacVal = Number(item.average_unit_cost ?? item.wac ?? 0);
+        const totalVal = Number(item.total_valuation ?? item.stock_value ?? (qty * wacVal));
+        const minLevel = Number(item.min_stock_level ?? item.minimum_level ?? matchingItem.min_stock_level ?? 0);
+
+        return {
+          ...item,
+          item_code: item.sku || item.item_code || matchingItem.item_code || `ITEM-${item.item_id}`,
+          item_name: item.item_name || matchingItem.item_name || 'Item',
+          category_name: item.category_name || matchingItem.category_name || '—',
+          location_name: item.location_name || matchingLoc.location_name || 'Warehouse',
+          unit: item.unit || matchingItem.unit || 'units',
+          available_quantity: qty,
+          current_quantity: qty,
+          wac: wacVal,
+          average_unit_cost: wacVal,
+          stock_value: totalVal,
+          total_valuation: totalVal,
+          minimum_level: minLevel,
+          min_stock_level: minLevel,
+          status: item.status || (qty === 0 ? 'Out of Stock' : qty <= minLevel ? 'Low Stock' : 'In Stock'),
+        };
+      });
+
+      setStockList(normalizedStock);
       setItems(itemsRes || []);
       setLocations(locationsRes || []);
       setCategories(categoriesRes || []);
@@ -76,14 +109,14 @@ export const AvailableStockPage = () => {
   const filteredStock = useMemo(() => {
     return stockList.filter((row) => {
       const itemName = row.item_name || '';
-      const sku = row.sku || row.item_code || '';
+      const sku = row.item_code || row.sku || '';
       const q = searchQuery.toLowerCase();
 
       const matchesSearch = !searchQuery || itemName.toLowerCase().includes(q) || sku.toLowerCase().includes(q);
       const matchesItem = !selectedItem || String(row.item_id) === selectedItem;
       const matchesLocation = !selectedLocation || String(row.location_id) === selectedLocation;
       const matchesCategory = !selectedCategory || String(row.category_id) === selectedCategory;
-      const matchesStatus = !selectedStatus || String(row.status).toLowerCase() === selectedStatus.toLowerCase();
+      const matchesStatus = !selectedStatus || String(row.status).toLowerCase().includes(selectedStatus.toLowerCase());
 
       return (
         matchesSearch &&
@@ -98,8 +131,8 @@ export const AvailableStockPage = () => {
   // Compute Summary Metrics
   const summaryMetrics = useMemo(() => {
     const totalItems = new Set(stockList.map((s) => s.item_id)).size;
-    const totalStockQty = stockList.reduce((acc, curr) => acc + Number(curr.current_quantity || curr.available_quantity || 0), 0);
-    const totalStockValue = stockList.reduce((acc, curr) => acc + Number(curr.total_valuation || curr.stock_value || 0), 0);
+    const totalStockQty = stockList.reduce((acc, curr) => acc + Number(curr.current_quantity || 0), 0);
+    const totalStockValue = stockList.reduce((acc, curr) => acc + Number(curr.total_valuation || 0), 0);
     const lowStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('low')).length;
     const outOfStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('out')).length;
 
