@@ -28,7 +28,7 @@ export const DistributionFormModal = ({
   useEffect(() => {
     if (isOpen) {
       const defaultOutward = outwardRecords.length > 0 ? outwardRecords[0] : null;
-      const defaultId = defaultOutward ? String(defaultOutward.id) : '';
+      const defaultId = defaultOutward ? String(defaultOutward.id || defaultOutward.outward_id) : '';
       setSelectedOutwardId(defaultId);
       setParentOutward(defaultOutward);
 
@@ -51,7 +51,7 @@ export const DistributionFormModal = ({
   const handleOutwardChange = (e) => {
     const val = e.target.value;
     setSelectedOutwardId(val);
-    const found = outwardRecords.find((o) => String(o.id) === val);
+    const found = outwardRecords.find((o) => String(o.id || o.outward_id) === val);
     setParentOutward(found || null);
 
     if (found) {
@@ -110,7 +110,7 @@ export const DistributionFormModal = ({
   };
 
   const outwardOptions = outwardRecords.map((o) => ({
-    value: String(o.id),
+    value: String(o.id || o.outward_id),
     label: `${o.outward_no} - ${o.item_name} (${o.location_name})`,
   }));
 

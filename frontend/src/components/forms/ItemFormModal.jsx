@@ -41,7 +41,7 @@ export const ItemFormModal = ({
       setFormData({
         item_code: '',
         item_name: '',
-        category_id: categories.length > 0 ? String(categories[0].id) : '',
+        category_id: categories.length > 0 ? String(categories[0].id || categories[0].category_id) : '',
         unit: 'PCS',
         minimum_level: 10,
         default_unit_cost: 0,
@@ -97,7 +97,7 @@ export const ItemFormModal = ({
       : 'Item Details';
 
   const categoryOptions = categories.map((cat) => ({
-    value: String(cat.id),
+    value: String(cat.id || cat.category_id),
     label: cat.category_name,
   }));
 

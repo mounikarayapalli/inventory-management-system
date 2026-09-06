@@ -27,9 +27,9 @@ export const InwardFormModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      const defaultItemId = items.length > 0 ? String(items[0].id) : '';
-      const defaultSupId = suppliers.length > 0 ? String(suppliers[0].id) : '';
-      const defaultLocId = locations.length > 0 ? String(locations[0].id) : '';
+      const defaultItemId = items.length > 0 ? String(items[0].id || items[0].item_id) : '';
+      const defaultSupId = suppliers.length > 0 ? String(suppliers[0].id || suppliers[0].supplier_id) : '';
+      const defaultLocId = locations.length > 0 ? String(locations[0].id || locations[0].location_id) : '';
       const defaultItemCost = items.length > 0 && items[0].default_unit_cost ? items[0].default_unit_cost : 0;
 
       setFormData({
@@ -48,7 +48,7 @@ export const InwardFormModal = ({
 
   const handleItemChange = (e) => {
     const val = e.target.value;
-    const selectedItem = items.find((i) => String(i.id) === val);
+    const selectedItem = items.find((i) => String(i.id || i.item_id) === val);
     const unitCost = selectedItem && selectedItem.default_unit_cost ? selectedItem.default_unit_cost : 0;
     setFormData((prev) => ({ ...prev, item_id: val, unit_cost: unitCost }));
   };
@@ -92,17 +92,17 @@ export const InwardFormModal = ({
   };
 
   const itemOptions = items.map((i) => ({
-    value: String(i.id),
+    value: String(i.id || i.item_id),
     label: `${i.item_code} - ${i.item_name}`,
   }));
 
   const supplierOptions = suppliers.map((s) => ({
-    value: String(s.id),
+    value: String(s.id || s.supplier_id),
     label: s.supplier_name,
   }));
 
   const locationOptions = locations.map((l) => ({
-    value: String(l.id),
+    value: String(l.id || l.location_id),
     label: l.location_name,
   }));
 

@@ -24,8 +24,8 @@ export const ReturnFormModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      const defaultItemId = items.length > 0 ? String(items[0].id) : '';
-      const defaultLocId = locations.length > 0 ? String(locations[0].id) : '';
+      const defaultItemId = items.length > 0 ? String(items[0].id || items[0].item_id) : '';
+      const defaultLocId = locations.length > 0 ? String(locations[0].id || locations[0].location_id) : '';
       setFormData({
         item_id: defaultItemId,
         location_id: defaultLocId,
@@ -66,12 +66,12 @@ export const ReturnFormModal = ({
   };
 
   const itemOptions = items.map((i) => ({
-    value: String(i.id),
+    value: String(i.id || i.item_id),
     label: `${i.item_code} - ${i.item_name}`,
   }));
 
   const locationOptions = locations.map((l) => ({
-    value: String(l.id),
+    value: String(l.id || l.location_id),
     label: l.location_name,
   }));
 
