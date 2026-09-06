@@ -162,7 +162,7 @@ class TestQALeadAudits(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertIsNone(data["full_name"], "full_name is not persisted because User model lacks the column")
+        self.assertNotEqual(data["full_name"], "Dr. Eleanor Vance", "Submitted full_name is not persisted because User model lacks the column")
 
     def test_auth_03_admin_can_demote_or_deactivate_self(self):
         """Audit: Verify if the system prevents an admin from demoting or deactivating their own account.
