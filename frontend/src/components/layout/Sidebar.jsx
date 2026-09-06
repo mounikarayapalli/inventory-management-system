@@ -6,7 +6,7 @@ import {
   Warehouse,
   Database,
   FileBarChart,
-  Users as UsersIcon,
+  Users,
   ChevronRight,
   Package,
   Archive,
@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { NAVIGATION_ITEMS } from '../../constants/navigation';
+
 import CaliboLogo from '../common/CaliboLogo';
 
 // Map string icon names to Lucide icons
@@ -31,7 +32,7 @@ const iconMap = {
   Warehouse,
   Database,
   FileBarChart,
-  Users: UsersIcon,
+  Users,
   Package,
   Archive,
   ArrowDownLeft,
@@ -86,9 +87,9 @@ export const Sidebar = ({ mobileOpen, onMobileClose }) => {
       className={`app-sidebar ${mobileOpen ? 'mobile-open' : ''}`}
       aria-label="Sidebar Navigation"
     >
-      {/* Sidebar Header & Calibo Product Branding */}
+      {/* Sidebar Header & Product Branding */}
       <div className="sidebar-header">
-        <CaliboLogo size="md" variant="light" layout="horizontal" showSubtitle={false} />
+        <CaliboLogo size="md" variant="auto" layout="horizontal" showSubtitle={true} />
         <button
           className="sidebar-close-mobile"
           onClick={onMobileClose}
@@ -100,6 +101,8 @@ export const Sidebar = ({ mobileOpen, onMobileClose }) => {
 
       {/* Navigation List */}
       <nav className="sidebar-nav" aria-label="Main Navigation">
+        <div className="nav-group-title">Navigation</div>
+
         {NAVIGATION_ITEMS.map((item) => {
           const IconComponent = iconMap[item.icon] || Package;
 

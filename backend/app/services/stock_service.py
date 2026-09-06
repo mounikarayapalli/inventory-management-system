@@ -15,6 +15,7 @@ from app.models.outward_transaction import OutwardTransaction
 from app.models.stock_movement import StockMovement
 from app.schemas.stock import (
     LocationStockDetail,
+    StockBreakdownSchema,
     StockDetailResponse,
     StockMovementResponse,
     StockResponse,
@@ -147,39 +148,101 @@ class StockService:
             item_id=item.item_id,
             item_name=item.item_name,
             sku=item.item_code,
+            category_id=item.category_id,
+            category_name=item.category.category_name if item.category else None,
             current_quantity=quantize_quantity(total_quantity),
+            available_quantity=quantize_quantity(total_quantity),
             min_stock_level=item.minimum_level,
             status=determine_stock_status(total_quantity, item.minimum_level),
             average_unit_cost=avg_cost,
+            wac=avg_cost,
             total_valuation=quantize_currency(total_value),
+            stock_value=quantize_currency(total_value),
             locations=location_details,
             last_updated=datetime.now(timezone.utc),
         )
 
-    def list_stock(self, db: Session, skip: int = 0, limit: int = 100) -> List[StockResponse]:
-        """List aggregate stock balances and valuations across all catalog items."""
+    def get_stock_breakdown(self, db: Session, item_id: int, location_id: int) -> StockBreakdownSchema:
+        """Calculate movement breakdown for an item at a specific location."""
+        stmt = (
+            select(StockMovement)
+            .where(
+                StockMovement.item_id == item_id,
+                StockMovement.location_id == location_id,
+            )
+        )
+        movements = db.scalars(stmt).all()
+        opening = Decimal("0.00")
+        inward = Decimal("0.00")
+        outward = Decimal("0.00")
+        returns = Decimal("0.00")
+        adjustments = Decimal("0.00")
+
+        for m in movements:
+            m_type = str(m.movement_type).upper()
+            qty = to_decimal(m.quantity)
+            if m_type == "OPENING":
+                opening += qty
+            elif m_type == "INWARD":
+                inward += qty
+            elif m_type == "OUTWARD":
+                outward += qty
+            elif m_type == "RETURN":
+                returns += qty
+            elif m_type == "ADJUSTMENT":
+                adjustments += qty
+
+        return StockBreakdownSchema(
+            opening_stock=opening,
+            inward=inward,
+            outward=outward,
+            returns=returns,
+            adjustments=adjustments,
+        )
+
+    def list_stock(self, db: Session, skip: int = 0, limit: int = 500) -> List[StockResponse]:
+        """List inventory stock balances maintained Item + Location wise across active items and locations."""
         items = db.scalars(
-            select(Item).where(Item.is_active.is_(True)).order_by(Item.item_id.asc()).offset(skip).limit(limit)
+            select(Item).where(Item.is_active.is_(True)).order_by(Item.item_id.asc())
+        ).all()
+        locations = db.scalars(
+            select(Location).where(Location.is_active.is_(True)).order_by(Location.location_name.asc())
         ).all()
 
-        results: List[StockResponse] = []
+        all_records: List[StockResponse] = []
         for item in items:
-            detail = self.get_stock_by_item(db, item.item_id)
-            results.append(
-                StockResponse(
-                    item_id=detail.item_id,
-                    item_name=detail.item_name,
-                    sku=detail.sku,
-                    current_quantity=detail.current_quantity,
-                    min_stock_level=detail.min_stock_level,
-                    status=detail.status,
-                    average_unit_cost=detail.average_unit_cost,
-                    total_valuation=detail.total_valuation,
-                    last_updated=detail.last_updated,
-                )
-            )
+            cat_name = item.category.category_name if item.category else None
+            cat_id = item.category_id
+            for loc in locations:
+                avail_qty = self.get_available_stock(db, item.item_id, loc.location_id)
+                wac_val = self.get_wac(db, item.item_id, loc.location_id)
+                tot_val = quantize_currency(avail_qty * wac_val)
+                st = determine_stock_status(avail_qty, item.minimum_level)
+                bk = self.get_stock_breakdown(db, item.item_id, loc.location_id)
 
-        return results
+                all_records.append(
+                    StockResponse(
+                        item_id=item.item_id,
+                        item_name=item.item_name,
+                        sku=item.item_code,
+                        category_id=cat_id,
+                        category_name=cat_name,
+                        location_id=loc.location_id,
+                        location_name=loc.location_name,
+                        current_quantity=avail_qty,
+                        available_quantity=avail_qty,
+                        min_stock_level=item.minimum_level,
+                        status=st,
+                        average_unit_cost=wac_val,
+                        wac=wac_val,
+                        total_valuation=tot_val,
+                        stock_value=tot_val,
+                        breakdown=bk,
+                        last_updated=datetime.now(timezone.utc),
+                    )
+                )
+
+        return all_records[skip : skip + limit]
 
     def list_movements(self, db: Session, skip: int = 0, limit: int = 100) -> List[StockMovementResponse]:
         """Retrieve chronological log of all stock ledger movements."""

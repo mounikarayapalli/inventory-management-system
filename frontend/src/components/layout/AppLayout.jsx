@@ -2,30 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import MobileBottomNav from './MobileBottomNav';
-import MobileQuickActionsSheet from './MobileQuickActionsSheet';
-import MobileMoreDrawer from './MobileMoreDrawer';
 
 export const AppLayout = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const location = useLocation();
 
-  // Close mobile overlays when route changes
+  // Close mobile sidebar when route changes
   useEffect(() => {
     setMobileSidebarOpen(false);
-    setQuickActionsOpen(false);
-    setMoreDrawerOpen(false);
   }, [location.pathname]);
 
-  // Handle escape key to close mobile overlays
+  // Handle escape key to close mobile sidebar
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setMobileSidebarOpen(false);
-        setQuickActionsOpen(false);
-        setMoreDrawerOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -59,22 +50,6 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
-
-      {/* Mobile App Shell Elements (< 768px) */}
-      <MobileBottomNav
-        onOpenQuickActions={() => setQuickActionsOpen(true)}
-        onOpenMoreDrawer={() => setMoreDrawerOpen(true)}
-      />
-
-      <MobileQuickActionsSheet
-        isOpen={quickActionsOpen}
-        onClose={() => setQuickActionsOpen(false)}
-      />
-
-      <MobileMoreDrawer
-        isOpen={moreDrawerOpen}
-        onClose={() => setMoreDrawerOpen(false)}
-      />
     </div>
   );
 };

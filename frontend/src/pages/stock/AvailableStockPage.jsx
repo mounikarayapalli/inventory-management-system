@@ -116,7 +116,9 @@ export const AvailableStockPage = () => {
       const matchesItem = !selectedItem || String(row.item_id) === selectedItem;
       const matchesLocation = !selectedLocation || String(row.location_id) === selectedLocation;
       const matchesCategory = !selectedCategory || String(row.category_id) === selectedCategory;
-      const matchesStatus = !selectedStatus || String(row.status).toLowerCase().includes(selectedStatus.toLowerCase());
+      const normStatus = String(row.status || '').toLowerCase().replace(/_/g, ' ');
+      const normFilter = selectedStatus.toLowerCase().replace(/_/g, ' ');
+      const matchesStatus = !selectedStatus || normStatus.includes(normFilter);
 
       return (
         matchesSearch &&
@@ -133,8 +135,8 @@ export const AvailableStockPage = () => {
     const totalItems = new Set(stockList.map((s) => s.item_id)).size;
     const totalStockQty = stockList.reduce((acc, curr) => acc + Number(curr.current_quantity || 0), 0);
     const totalStockValue = stockList.reduce((acc, curr) => acc + Number(curr.total_valuation || 0), 0);
-    const lowStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('low')).length;
-    const outOfStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('out')).length;
+    const lowStockCount = stockList.filter((s) => String(s.status).toLowerCase().replace(/_/g, ' ').includes('low')).length;
+    const outOfStockCount = stockList.filter((s) => String(s.status).toLowerCase().replace(/_/g, ' ').includes('out')).length;
 
     return {
       totalItems,
@@ -148,7 +150,19 @@ export const AvailableStockPage = () => {
   const handleViewDetails = async (record) => {
     try {
       const detail = await stockAPI.getItemStock(record.item_id);
-      setSelectedStockRecord({ ...record, ...detail });
+      setSelectedStockRecord({
+        ...detail,
+        ...record,
+        item_code: record.item_code || detail.sku,
+        category_name: record.category_name || detail.category_name,
+        location_name: record.location_name,
+        available_quantity: record.available_quantity,
+        current_quantity: record.available_quantity,
+        wac: record.wac,
+        stock_value: record.stock_value,
+        breakdown: record.breakdown,
+        status: record.status,
+      });
     } catch {
       setSelectedStockRecord(record);
     }

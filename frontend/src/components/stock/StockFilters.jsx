@@ -22,17 +22,17 @@ export const StockFilters = ({
 }) => {
   const itemOptions = [
     { value: '', label: 'All Items' },
-    ...items.map((i) => ({ value: String(i.id), label: `${i.item_code} - ${i.item_name}` })),
+    ...items.map((i) => ({ value: String(i.item_id ?? i.id), label: `${i.item_code} - ${i.item_name}` })),
   ];
 
   const locationOptions = [
     { value: '', label: 'All Locations' },
-    ...locations.map((l) => ({ value: String(l.id), label: l.location_name })),
+    ...locations.map((l) => ({ value: String(l.location_id ?? l.id), label: l.location_name })),
   ];
 
   const categoryOptions = [
     { value: '', label: 'All Categories' },
-    ...categories.map((c) => ({ value: String(c.id), label: c.category_name })),
+    ...categories.map((c) => ({ value: String(c.category_id ?? c.id), label: c.category_name })),
   ];
 
   const tabs = [
