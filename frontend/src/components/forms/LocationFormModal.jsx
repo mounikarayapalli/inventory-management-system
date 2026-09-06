@@ -46,15 +46,24 @@ export const LocationFormModal = ({
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isView) {
       onClose();
       return;
     }
     if (validate()) {
-      onSave(formData);
-      onClose();
+      setSubmitting(true);
+      try {
+        await onSave(formData);
+        onClose();
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, submit: err.message }));
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 

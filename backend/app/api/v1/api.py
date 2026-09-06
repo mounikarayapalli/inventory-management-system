@@ -38,8 +38,9 @@ api_router.include_router(suppliers.router, prefix="/suppliers", tags=["Supplier
 # 6. Locations
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 
-# 7. Inventory Transactions
+# 7. Inventory Transactions (mounted with /transactions prefix and root for full API parity)
 api_router.include_router(transactions.router, tags=["Inventory Transactions"])
+api_router.include_router(transactions.router, prefix="/transactions", tags=["Inventory Transactions"])
 
 # 8. Stock
 api_router.include_router(

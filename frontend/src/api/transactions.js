@@ -9,6 +9,15 @@ export const transactionsAPI = {
 
   createDistribution: (payload) => request('/transactions/distributions', { method: 'POST', body: payload }),
 
+  listDistributions: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.skip !== undefined) query.append('skip', params.skip);
+    if (params.limit !== undefined) query.append('limit', params.limit);
+    if (params.outward_id !== undefined) query.append('outward_id', params.outward_id);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return request(`/transactions/distributions${queryString}`, { method: 'GET' });
+  },
+
   createReturn: (payload) => request('/transactions/returns', { method: 'POST', body: payload }),
 
   createAdjustment: (payload) => request('/transactions/adjustments', { method: 'POST', body: payload }),

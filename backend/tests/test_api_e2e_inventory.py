@@ -288,6 +288,14 @@ class TestInventoryE2EWorkflow(unittest.TestCase):
         self.assertEqual(dist_data["transaction_type"], "distribution")
         self.assertEqual(Decimal(str(dist_data["quantity"])), Decimal("10.00"))
 
+        # Verify GET /api/distributions endpoint
+        get_dist_resp = self.client.get("/api/distributions", headers=auth_headers)
+        self.assertEqual(get_dist_resp.status_code, 200)
+        dist_list = get_dist_resp.json()
+        self.assertGreaterEqual(len(dist_list), 1)
+        self.assertEqual(dist_list[0]["outward_id"], outward_id)
+        self.assertEqual(Decimal(str(dist_list[0]["quantity"])), Decimal("10.00"))
+
         # ------------------------------------------------------------------
         # 13. Verify Available Stock is STILL 130 (no double deduction)
         # ------------------------------------------------------------------

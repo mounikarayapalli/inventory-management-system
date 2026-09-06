@@ -125,3 +125,28 @@ class AdjustmentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DistributionResponse(BaseModel):
+    """Schema for stock distribution response (Admin & Stock Manager)."""
+
+    distribution_id: int = Field(..., description="Unique distribution ID")
+    id: Optional[int] = Field(default=None, description="Distribution ID alias")
+    outward_id: int = Field(..., description="Related outward transaction ID")
+    outward_no: Optional[str] = Field(default=None, description="Parent outward number")
+    item_id: int = Field(..., description="Item ID")
+    item_name: Optional[str] = Field(default=None, description="Item name")
+    location_id: int = Field(..., description="Location ID")
+    location_name: Optional[str] = Field(default=None, description="Location name")
+    quantity: Decimal = Field(..., description="Quantity distributed")
+    recipient: Optional[str] = Field(default=None, description="Recipient individual or team")
+    batch: Optional[str] = Field(default=None, description="Batch number")
+    department: Optional[str] = Field(default=None, description="Department")
+    purpose: Optional[str] = Field(default=None, description="Purpose")
+    distribution_date: date = Field(..., description="Distribution date")
+    created_by: int = Field(..., description="User ID who recorded distribution")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+    class Config:
+        from_attributes = True
+

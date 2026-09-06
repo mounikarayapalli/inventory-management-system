@@ -34,14 +34,16 @@ export const DistributionPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [itemsRes, locationsRes, outwardReportRes] = await Promise.all([
+      const [itemsRes, locationsRes, outwardReportRes, distRes] = await Promise.all([
         itemsAPI.listItems(),
         locationsAPI.listLocations(),
         reportsAPI.getOutwardReport(),
+        transactionsAPI.listDistributions().catch(() => []),
       ]);
       setItems(itemsRes || []);
       setLocations(locationsRes || []);
       setOutwardRecords(outwardReportRes || []);
+      setDistributionList(distRes || []);
     } catch (err) {
       setError(err.message || 'Failed to load distribution data');
     } finally {
@@ -114,7 +116,7 @@ export const DistributionPage = () => {
     {
       header: 'Distribution ID',
       key: 'id',
-      render: (row) => <code style={{ fontSize: '0.8rem' }}>DST-{row.id}</code>,
+      render: (row) => <code style={{ fontSize: '0.8rem' }}>DST-{row.distribution_id || row.id}</code>,
     },
     {
       header: 'Parent Outward',

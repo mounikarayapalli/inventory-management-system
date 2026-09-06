@@ -5,13 +5,18 @@ import { ROLES } from '../constants/navigation';
 
 const RoleContext = createContext();
 
+export { ROLES };
+
 export const normalizeRole = (r) => {
-  if (!r) return ROLES.ADMIN;
+  if (!r) return null;
   const lower = String(r).toLowerCase();
-  if (lower === 'stock manager' || lower === 'stock_manager' || lower.includes('manager')) {
+  if (lower.includes('admin')) {
+    return ROLES.ADMIN;
+  }
+  if (lower.includes('manager')) {
     return ROLES.STOCK_MANAGER;
   }
-  return ROLES.ADMIN;
+  return lower;
 };
 
 export const RoleProvider = ({ children }) => {
@@ -71,6 +76,8 @@ export const RoleProvider = ({ children }) => {
     logout,
     updateUserProfile,
     activeRole,
+    currentRole: activeRole,
+    ROLES,
     isAdmin: activeRole === ROLES.ADMIN,
     isStockManager: activeRole === ROLES.STOCK_MANAGER,
     isAuthenticated: !!token,
@@ -88,8 +95,10 @@ export const useRole = () => {
       loading: false,
       login: async () => {},
       logout: () => {},
-      activeRole: ROLES.ADMIN,
-      isAdmin: true,
+      activeRole: null,
+      currentRole: null,
+      ROLES,
+      isAdmin: false,
       isStockManager: false,
       isAuthenticated: false,
     };

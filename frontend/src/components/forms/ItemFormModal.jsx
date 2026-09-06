@@ -72,20 +72,29 @@ export const ItemFormModal = ({
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isView) {
       onClose();
       return;
     }
     if (validate()) {
-      onSave({
-        ...formData,
-        category_id: Number(formData.category_id),
-        minimum_level: Number(formData.minimum_level),
-        default_unit_cost: Number(formData.default_unit_cost),
-      });
-      onClose();
+      setSubmitting(true);
+      try {
+        await onSave({
+          ...formData,
+          category_id: Number(formData.category_id),
+          minimum_level: Number(formData.minimum_level),
+          default_unit_cost: Number(formData.default_unit_cost),
+        });
+        onClose();
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, submit: err.message }));
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 

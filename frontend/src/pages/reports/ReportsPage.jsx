@@ -180,17 +180,24 @@ export const ReportsPage = () => {
     if (rows.length === 0) return;
 
     const headers = Object.keys(rows[0]).join(',');
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers, ...rows.map((r) => Object.values(r).map((v) => `"${v}"`).join(','))].join('\n');
+    const escapeVal = (v) => {
+      const str = v === null || v === undefined ? '' : String(v);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+    const csvContent = [
+      headers,
+      ...rows.map((r) => Object.values(r).map(escapeVal).join(',')),
+    ].join('\n');
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
+    link.setAttribute('href', url);
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Columns for Stock Report

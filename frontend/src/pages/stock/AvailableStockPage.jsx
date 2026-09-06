@@ -66,6 +66,7 @@ export const AvailableStockPage = () => {
           ...item,
           item_code: item.sku || item.item_code || matchingItem.item_code || `ITEM-${item.item_id}`,
           item_name: item.item_name || matchingItem.item_name || 'Item',
+          category_id: item.category_id || matchingItem.category_id,
           category_name: item.category_name || matchingItem.category_name || '—',
           location_name: item.location_name || matchingLoc.location_name || 'Warehouse',
           unit: item.unit || matchingItem.unit || 'units',

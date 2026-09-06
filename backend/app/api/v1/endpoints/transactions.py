@@ -1,6 +1,6 @@
 """API endpoints for inventory transactions and material movement tracking."""
 
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.schemas.transaction import (
     AdjustmentResponse,
     AdjustmentUpdate,
     DistributionRequest,
+    DistributionResponse,
     InwardRequest,
     OpeningStockRequest,
     OutwardRequest,
@@ -85,6 +86,24 @@ def create_distribution(
 ) -> TransactionResponse:
     """Record inter-location distribution."""
     return transaction_service.record_distribution(db, payload, created_by=current_user.user_id)
+
+
+@router.get(
+    "/distributions",
+    response_model=List[DistributionResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List stock distributions",
+    description="Retrieve paginated list of stock distribution records with parent outward details (Admin & Stock Manager).",
+)
+def list_distributions(
+    skip: int = Query(0, ge=0, description="Pagination offset"),
+    limit: int = Query(100, ge=1, le=500, description="Pagination limit"),
+    outward_id: Optional[int] = Query(None, description="Filter by parent outward transaction ID"),
+    current_user: User = Depends(require_roles("admin", "stock manager")),
+    db: Session = Depends(get_db),
+) -> List[DistributionResponse]:
+    """List stock distributions."""
+    return transaction_service.list_distributions(db, skip=skip, limit=limit, outward_id=outward_id)
 
 
 @router.post(

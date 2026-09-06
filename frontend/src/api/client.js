@@ -65,11 +65,20 @@ export async function request(endpoint, options = {}) {
     }
 
     if (!response.ok) {
-      const errorMsg =
-        (data && (data.detail || data.message)) ||
+      let errorMsg =
+        data?.error?.message ||
+        (Array.isArray(data?.detail)
+          ? data.detail.map((e) => e.msg || e.message || JSON.stringify(e)).join(', ')
+          : data?.detail) ||
+        data?.message ||
         `Request failed with status ${response.status}`;
+
+      if (typeof errorMsg !== 'string') {
+        errorMsg = JSON.stringify(errorMsg);
+      }
+
       throw new APIError(
-        typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
+        errorMsg,
         response.status,
         data
       );

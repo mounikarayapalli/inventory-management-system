@@ -4,12 +4,23 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import settings
 
+is_sqlite = "sqlite" in settings.sync_database_url.lower()
+engine_kwargs = {
+    "echo": settings.DEBUG,
+}
+
+if is_sqlite:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+    })
+
 engine = create_engine(
     settings.sync_database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    echo=settings.DEBUG,
+    **engine_kwargs,
 )
 
 SessionLocal = sessionmaker(

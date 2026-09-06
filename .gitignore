@@ -57,3 +57,8 @@ dist/
 .DS_Store
 Thumbs.db
 
+# SQLite / Local Databases
+*.db
+*.sqlite
+*.sqlite3
+

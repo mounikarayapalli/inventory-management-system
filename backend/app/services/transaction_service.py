@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import BadRequestException, ConflictException, NotFoundException, UnauthorizedException
 from app.models.distribution_transaction import DistributionTransaction
@@ -22,6 +22,7 @@ from app.schemas.transaction import (
     AdjustmentRequest,
     AdjustmentUpdate,
     DistributionRequest,
+    DistributionResponse,
     InwardRequest,
     OpeningStockRequest,
     OutwardRequest,
@@ -365,8 +366,59 @@ class TransactionService:
             status="completed",
             unit_cost=current_wac,
             total_cost=quantize_currency(qty * current_wac),
-            created_at=dist_entry.created_at,
+            created_at=dist_entry.created_at or datetime.now(timezone.utc),
         )
+
+    def list_distributions(
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        outward_id: Optional[int] = None,
+    ) -> List[DistributionResponse]:
+        """Retrieve paginated list of distribution records with parent outward details."""
+        query = (
+            db.query(DistributionTransaction)
+            .join(OutwardTransaction, DistributionTransaction.outward_id == OutwardTransaction.outward_id)
+            .options(
+                joinedload(DistributionTransaction.outward_transaction).joinedload(OutwardTransaction.item),
+                joinedload(DistributionTransaction.outward_transaction).joinedload(OutwardTransaction.location),
+            )
+        )
+        if outward_id is not None:
+            query = query.filter(DistributionTransaction.outward_id == outward_id)
+
+        records = (
+            query.order_by(DistributionTransaction.distribution_id.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        results = []
+        for r in records:
+            outward = r.outward_transaction
+            results.append(
+                DistributionResponse(
+                    distribution_id=r.distribution_id,
+                    id=r.distribution_id,
+                    outward_id=r.outward_id,
+                    outward_no=outward.outward_no if outward else None,
+                    item_id=outward.item_id if outward else 0,
+                    item_name=outward.item.item_name if (outward and outward.item) else None,
+                    location_id=outward.location_id if outward else 0,
+                    location_name=outward.location.location_name if (outward and outward.location) else None,
+                    quantity=r.quantity,
+                    recipient=r.recipient,
+                    batch=r.batch,
+                    department=r.department,
+                    purpose=r.purpose,
+                    distribution_date=r.distribution_date,
+                    created_by=r.created_by,
+                    created_at=r.created_at or datetime.now(timezone.utc),
+                )
+            )
+        return results
 
     def record_return(
         self, db: Session, payload: ReturnRequest, created_by: Optional[int] = None

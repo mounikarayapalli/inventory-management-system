@@ -33,11 +33,11 @@ export const OutwardFormModal = ({
       return;
     }
     try {
-      const stockList = await stockAPI.listStock();
-      const match = (stockList || []).find(
-        (s) => String(s.item_id) === String(itemId) && String(s.location_id) === String(locId)
+      const itemDetail = await stockAPI.getItemStock(itemId);
+      const locMatch = (itemDetail?.locations || []).find(
+        (l) => String(l.location_id) === String(locId)
       );
-      const qty = match ? Number(match.current_quantity ?? match.available_quantity ?? match.quantity_on_hand ?? 0) : 0;
+      const qty = locMatch ? Number(locMatch.quantity || 0) : 0;
       setAvailableStock(qty);
     } catch {
       setAvailableStock(0);

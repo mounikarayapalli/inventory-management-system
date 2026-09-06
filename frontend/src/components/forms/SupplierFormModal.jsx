@@ -61,15 +61,31 @@ export const SupplierFormModal = ({
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isView) {
       onClose();
       return;
     }
     if (validate()) {
-      onSave(formData);
-      onClose();
+      setSubmitting(true);
+      try {
+        const payload = {
+          ...formData,
+          email: formData.email && formData.email.trim() ? formData.email.trim() : null,
+          phone: formData.phone && formData.phone.trim() ? formData.phone.trim() : null,
+          contact_person: formData.contact_person && formData.contact_person.trim() ? formData.contact_person.trim() : null,
+          address: formData.address && formData.address.trim() ? formData.address.trim() : null,
+        };
+        await onSave(payload);
+        onClose();
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, submit: err.message }));
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
