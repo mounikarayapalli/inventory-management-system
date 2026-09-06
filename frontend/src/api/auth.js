@@ -39,6 +39,17 @@ export const authAPI = {
     return user;
   },
 
+  updateMe: async (payload) => {
+    const user = await request('/auth/me', {
+      method: 'PATCH',
+      body: payload,
+    });
+    if (user) {
+      setStoredUser(user);
+    }
+    return user;
+  },
+
   logout: () => {
     removeToken();
     removeStoredUser();

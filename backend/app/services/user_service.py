@@ -38,7 +38,7 @@ class UserService:
             user_id=user.user_id,
             username=user.username,
             email=user.email,
-            full_name=None,
+            full_name=user.username,
             role_id=user.role_id,
             role=user.role.role_name if user.role else f"Role {user.role_id}",
             is_active=user.is_active,

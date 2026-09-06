@@ -59,12 +59,17 @@ export const RoleProvider = ({ children }) => {
   const rawRole = user?.role || user?.role_name || (token ? 'admin' : null);
   const activeRole = normalizeRole(rawRole);
 
+  const updateUserProfile = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
   const value = {
     user,
     token,
     loading,
     login,
     logout,
+    updateUserProfile,
     activeRole,
     isAdmin: activeRole === ROLES.ADMIN,
     isStockManager: activeRole === ROLES.STOCK_MANAGER,

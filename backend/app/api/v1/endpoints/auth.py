@@ -11,7 +11,7 @@ from app.schemas.user import UserResponse
 from app.services.auth_service import auth_service
 from app.services.user_service import UserService
 
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services.user_service import user_service
 
 router = APIRouter()
@@ -53,3 +53,23 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserResponse
 def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
     """Return the profile information for the authenticated user."""
     return UserService._to_response(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update current user profile and credentials",
+    description="Allow authenticated user to update their email, username, or password.",
+)
+def update_me(
+    payload: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Self-service profile and credential update."""
+    # Security: Do not allow regular self-service role escalation or status change
+    payload.role_id = None
+    payload.role = None
+    payload.is_active = None
+    return user_service.update_user(db, user_id=current_user.user_id, payload=payload)
