@@ -23,38 +23,52 @@ export const CaliboLogo = ({
 
   return (
     <div className={`calibo-logo-component ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: sizePx > 40 ? '0.85rem' : '0.65rem' }}>
-      {/* Official Calibo SVG Emblem */}
-      <svg
-        viewBox="0 0 300 300"
-        width={sizePx}
-        height={sizePx}
-        style={{ flexShrink: 0 }}
-        aria-label="Calibo Logo Emblem"
+      {/* Official Calibo SVG Emblem Container */}
+      <div
+        className="calibo-logo-icon-badge"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#ffffff',
+          padding: sizePx > 40 ? '6px' : '4px',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+          flexShrink: 0,
+        }}
       >
-        <defs>
-          <linearGradient id={`navyGrad-${sizePx}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#1E2B88" />
-            <stop offset="100%" stopColor="#141E61" />
-          </linearGradient>
-          <linearGradient id={`tealGrad-${sizePx}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#00B4A2" />
-            <stop offset="100%" stopColor="#008375" />
-          </linearGradient>
-        </defs>
+        <svg
+          viewBox="0 0 300 300"
+          width={sizePx}
+          height={sizePx}
+          style={{ display: 'block', flexShrink: 0 }}
+          aria-label="Calibo Logo Emblem"
+        >
+          <defs>
+            <linearGradient id={`navyGrad-${sizePx}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1E2B88" />
+              <stop offset="100%" stopColor="#141E61" />
+            </linearGradient>
+            <linearGradient id={`tealGrad-${sizePx}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#00B4A2" />
+              <stop offset="100%" stopColor="#008375" />
+            </linearGradient>
+          </defs>
 
-        {/* Outer Ring 'C' embracing inner 'a' */}
-        <path
-          d="M 150 25 A 125 125 0 1 0 250 215 L 205 185 A 75 75 0 1 1 150 75 A 75 75 0 0 1 215 115 L 258 85 A 125 125 0 0 0 150 25 Z"
-          fill={`url(#navyGrad-${sizePx})`}
-        />
-        {/* Inner Circle 'a' Core */}
-        <circle cx="150" cy="150" r="45" fill={`url(#navyGrad-${sizePx})`} />
-        {/* Calibo Teal Leaf / Teardrop Accent */}
-        <path
-          d="M 215 150 C 215 110, 260 115, 265 150 C 260 185, 215 190, 215 150 Z"
-          fill={`url(#tealGrad-${sizePx})`}
-        />
-      </svg>
+          {/* Outer Ring 'C' embracing inner 'a' */}
+          <path
+            d="M 150 25 A 125 125 0 1 0 250 215 L 205 185 A 75 75 0 1 1 150 75 A 75 75 0 0 1 215 115 L 258 85 A 125 125 0 0 0 150 25 Z"
+            fill={`url(#navyGrad-${sizePx})`}
+          />
+          {/* Inner Circle 'a' Core */}
+          <circle cx="150" cy="150" r="45" fill={`url(#navyGrad-${sizePx})`} />
+          {/* Calibo Teal Leaf / Teardrop Accent */}
+          <path
+            d="M 215 150 C 215 110, 260 115, 265 150 C 260 185, 215 190, 215 150 Z"
+            fill={`url(#tealGrad-${sizePx})`}
+          />
+        </svg>
+      </div>
 
       {/* Brand Text Labels */}
       {showText && (
@@ -68,7 +82,7 @@ export const CaliboLogo = ({
               letterSpacing: '-0.02em',
             }}
           >
-            Calibo <span className="calibo-teal-accent">Inventory</span>
+            Calibo <span className="calibo-teal-accent" style={{ color: '#00B4A2' }}>Inventory</span>
           </div>
           {subtitle && (
             <div
