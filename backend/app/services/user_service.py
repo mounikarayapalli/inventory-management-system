@@ -56,8 +56,12 @@ class UserService:
 
         if role_name is not None and role_name.strip():
             r_name = role_name.strip()
+            r_normalized = r_name.replace('_', ' ')
             role = db.scalars(
-                select(Role).where(func.lower(Role.role_name) == r_name.lower())
+                select(Role).where(
+                    (func.lower(Role.role_name) == r_name.lower()) |
+                    (func.lower(Role.role_name) == r_normalized.lower())
+                )
             ).first()
             if not role:
                 raise NotFoundException(f"Role with name '{r_name}' not found.")

@@ -38,10 +38,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 )
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserResponse:
     """Public user registration."""
-    # Ensure public registration defaults to non-admin stock manager role
     if not payload.role and not payload.role_id:
-        payload.role = "stock manager"
-    elif payload.role and payload.role.lower() == "admin":
         payload.role = "stock manager"
     return user_service.create_user(db, payload=payload)
 
