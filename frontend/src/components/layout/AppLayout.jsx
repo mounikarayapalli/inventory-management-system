@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 
 export const AppLayout = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const location = useLocation();
 
   // Close mobile sidebar when route changes
@@ -12,19 +13,34 @@ export const AppLayout = () => {
     setMobileSidebarOpen(false);
   }, [location.pathname]);
 
-  // Handle escape key to close mobile sidebar
+  // Handle escape key to close mobile sidebar & handle window resize
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setMobileSidebarOpen(false);
       }
     };
+
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        setMobileSidebarOpen(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const handleToggleSidebar = () => {
-    setMobileSidebarOpen((prev) => !prev);
+    if (window.innerWidth <= 1024) {
+      setMobileSidebarOpen((prev) => !prev);
+    } else {
+      setDesktopSidebarCollapsed((prev) => !prev);
+    }
   };
 
   const handleCloseSidebar = () => {
@@ -32,7 +48,7 @@ export const AppLayout = () => {
   };
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${desktopSidebarCollapsed ? 'desktop-collapsed' : ''}`}>
       {/* Mobile Sidebar Overlay Backdrop */}
       {mobileSidebarOpen && (
         <div
@@ -42,7 +58,11 @@ export const AppLayout = () => {
         />
       )}
 
-      <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={handleCloseSidebar} />
+      <Sidebar
+        mobileOpen={mobileSidebarOpen}
+        desktopCollapsed={desktopSidebarCollapsed}
+        onMobileClose={handleCloseSidebar}
+      />
 
       <div className="app-main-wrapper">
         <Navbar onToggleSidebar={handleToggleSidebar} />

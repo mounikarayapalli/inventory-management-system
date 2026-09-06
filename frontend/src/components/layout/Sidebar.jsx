@@ -46,7 +46,7 @@ const iconMap = {
   MapPin,
 };
 
-export const Sidebar = ({ mobileOpen, onMobileClose }) => {
+export const Sidebar = ({ mobileOpen, desktopCollapsed, onMobileClose }) => {
   const location = useLocation();
   const [openSubmenus, setOpenSubmenus] = useState({
     inventory: true,
@@ -84,7 +84,7 @@ export const Sidebar = ({ mobileOpen, onMobileClose }) => {
 
   return (
     <aside
-      className={`app-sidebar ${mobileOpen ? 'mobile-open' : ''}`}
+      className={`app-sidebar ${mobileOpen ? 'mobile-open' : ''} ${desktopCollapsed ? 'desktop-collapsed' : ''}`}
       aria-label="Sidebar Navigation"
     >
       {/* Sidebar Header & Product Branding */}

@@ -62,11 +62,47 @@ const CustomTooltip = ({ active, payload, label, formatter }) => {
   return null;
 };
 
+const ChartSkeleton = ({ height = 280 }) => (
+  <div
+    style={{
+      width: '100%',
+      height,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+    }}
+  >
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: '8px',
+        backgroundColor: 'var(--neutral-100, #f1f5f9)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-around',
+        padding: '1.5rem 1rem 0.5rem 1rem',
+        gap: '0.75rem',
+        opacity: 0.7,
+      }}
+    >
+      <div style={{ width: '12%', height: '40%', backgroundColor: 'var(--neutral-200, #e2e8f0)', borderRadius: '4px' }} />
+      <div style={{ width: '12%', height: '80%', backgroundColor: 'var(--neutral-300, #cbd5e1)', borderRadius: '4px' }} />
+      <div style={{ width: '12%', height: '35%', backgroundColor: 'var(--neutral-200, #e2e8f0)', borderRadius: '4px' }} />
+      <div style={{ width: '12%', height: '60%', backgroundColor: 'var(--neutral-300, #cbd5e1)', borderRadius: '4px' }} />
+      <div style={{ width: '12%', height: '90%', backgroundColor: 'var(--neutral-200, #e2e8f0)', borderRadius: '4px' }} />
+      <div style={{ width: '12%', height: '50%', backgroundColor: 'var(--neutral-300, #cbd5e1)', borderRadius: '4px' }} />
+    </div>
+  </div>
+);
+
 export const DashboardCharts = ({
   categoryData = [],
   locationData = [],
   summary = null,
   recentMovements = [],
+  loading = false,
 }) => {
   // 1. Format Category Chart Data
   const categoryChartData = (categoryData || []).map((cat) => ({
@@ -135,7 +171,9 @@ export const DashboardCharts = ({
           subtitle="Real-time available stock volume and total asset valuation per category"
         >
           <div style={{ width: '100%', height: 280, paddingTop: '0.5rem' }}>
-            {categoryChartData.length === 0 ? (
+            {loading ? (
+              <ChartSkeleton />
+            ) : categoryChartData.length === 0 ? (
               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: '0.85rem' }}>
                 No category data available
               </div>
@@ -176,7 +214,9 @@ export const DashboardCharts = ({
           subtitle="Inventory threshold health breakdown across active SKUs"
         >
           <div style={{ width: '100%', height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {statusPieData.length === 0 ? (
+            {loading ? (
+              <ChartSkeleton />
+            ) : statusPieData.length === 0 ? (
               <div style={{ color: 'var(--neutral-400)', fontSize: '0.85rem' }}>No status data available</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -218,7 +258,9 @@ export const DashboardCharts = ({
           subtitle="Comparing warehouse storage volume (Vijayawada Hub vs. Vizag Hub)"
         >
           <div style={{ width: '100%', height: 280, paddingTop: '0.5rem' }}>
-            {locationChartData.length === 0 ? (
+            {loading ? (
+              <ChartSkeleton />
+            ) : locationChartData.length === 0 ? (
               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: '0.85rem' }}>
                 No location data available
               </div>
@@ -248,7 +290,9 @@ export const DashboardCharts = ({
           subtitle="Real-time transaction volume movements logged in stock ledger"
         >
           <div style={{ width: '100%', height: 280, paddingTop: '0.5rem' }}>
-            {movementTrendData.length === 0 ? (
+            {loading ? (
+              <ChartSkeleton />
+            ) : movementTrendData.length === 0 ? (
               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: '0.85rem' }}>
                 No recent movement trend data available
               </div>

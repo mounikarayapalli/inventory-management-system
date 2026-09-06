@@ -226,6 +226,7 @@ export const DashboardPage = () => {
         locationData={locationStock}
         summary={summary}
         recentMovements={recentMovements}
+        loading={loading}
       />
 
       {/* 4. Stock Alerts Section */}

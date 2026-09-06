@@ -10,6 +10,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  Sun,
+  Moon,
+  X,
+  AlertTriangle,
+  Package,
 } from 'lucide-react';
 import { useRole } from '../../context/RoleContext';
 import CaliboLogo from '../common/CaliboLogo';
@@ -18,6 +23,7 @@ import Button from '../common/Button';
 import Input from '../common/Input';
 import Badge from '../common/Badge';
 import authAPI from '../../api/auth';
+import dashboardAPI from '../../api/dashboard';
 
 export const Navbar = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -26,7 +32,85 @@ export const Navbar = ({ onToggleSidebar }) => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
+  // Theme Toggle State
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Notifications State & Logic
+  const [notifications, setNotifications] = useState([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const notificationRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  const fetchNotifications = async () => {
+    try {
+      const [outOfStock, lowStock, recentTx] = await Promise.allSettled([
+        dashboardAPI.getOutOfStock(),
+        dashboardAPI.getLowStock(),
+        dashboardAPI.getRecentTransactions(5),
+      ]);
+
+      const items = [];
+
+      if (outOfStock.status === 'fulfilled' && Array.isArray(outOfStock.value)) {
+        outOfStock.value.forEach((item) => {
+          items.push({
+            id: `oos-${item.item_id}-${item.location_id || 0}`,
+            type: 'out_of_stock',
+            severity: 'error',
+            title: 'Out of Stock Alert',
+            message: `${item.item_name} ${item.location_name ? `(${item.location_name})` : ''} is out of stock`,
+            time: 'Action Required',
+          });
+        });
+      }
+
+      if (lowStock.status === 'fulfilled' && Array.isArray(lowStock.value)) {
+        lowStock.value.forEach((item) => {
+          items.push({
+            id: `low-${item.item_id}-${item.location_id || 0}`,
+            type: 'low_stock',
+            severity: 'warning',
+            title: 'Low Stock Warning',
+            message: `${item.item_name} ${item.location_name ? `(${item.location_name})` : ''} reached min threshold (${item.current_quantity} remaining)`,
+            time: 'Attention Needed',
+          });
+        });
+      }
+
+      if (recentTx.status === 'fulfilled' && Array.isArray(recentTx.value)) {
+        recentTx.value.slice(0, 3).forEach((tx) => {
+          const timeStr = tx.timestamp
+            ? new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'Recently';
+          items.push({
+            id: `tx-${tx.id}`,
+            type: 'transaction',
+            severity: 'info',
+            title: `${tx.transaction_type || 'Transaction'} Activity`,
+            message: `${tx.item_name} - Qty: ${tx.quantity} ${tx.reference_no ? `(${tx.reference_no})` : ''}`,
+            time: timeStr,
+          });
+        });
+      }
+
+      setNotifications(items);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   // Settings Form State
   const [formData, setFormData] = useState({
@@ -52,17 +136,21 @@ export const Navbar = ({ onToggleSidebar }) => {
     }
   }, [user, settingsModalOpen]);
 
-  // Close profile dropdown when clicking outside
+  // Close profile & notification dropdowns when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setProfileDropdownOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setNotificationOpen(false);
       }
     };
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setProfileDropdownOpen(false);
+        setNotificationOpen(false);
       }
     };
 
@@ -161,15 +249,112 @@ export const Navbar = ({ onToggleSidebar }) => {
         </div>
 
         <div className="navbar-right">
-          {/* Notification Icon Placeholder */}
+          {/* Light / Dark Theme Toggle Button */}
           <button
             className="navbar-icon-btn"
-            aria-label="System notifications"
-            title="Notifications"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
-            <Bell size={19} />
-            <span className="notification-badge-dot" />
+            {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
           </button>
+
+          {/* System Notifications Menu */}
+          <div className="notification-container" ref={notificationRef}>
+            <button
+              className="navbar-icon-btn"
+              onClick={() => setNotificationOpen((prev) => !prev)}
+              aria-expanded={notificationOpen}
+              aria-haspopup="true"
+              aria-label="System notifications"
+              title="Notifications"
+            >
+              <Bell size={19} />
+              {notifications.length > 0 && (
+                <span className="notification-badge-count">
+                  {notifications.length > 99 ? '99+' : notifications.length}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown Panel */}
+            {notificationOpen && (
+              <div className="notification-dropdown-panel" role="menu">
+                <div className="notification-panel-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Notifications</span>
+                    {notifications.length > 0 && (
+                      <span className="notification-header-count">{notifications.length}</span>
+                    )}
+                  </div>
+                  {notifications.length > 0 && (
+                    <button
+                      className="notification-mark-read-btn"
+                      onClick={() => setNotifications([])}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                <div className="notification-panel-body">
+                  {notifications.length === 0 ? (
+                    <div className="notification-empty-state">
+                      <CheckCircle2 size={32} style={{ color: 'var(--success-500)', marginBottom: '4px' }} />
+                      <div className="empty-title">All caught up!</div>
+                      <div className="empty-desc">No new system alerts or inventory warnings.</div>
+                    </div>
+                  ) : (
+                    notifications.map((item) => {
+                      const Icon =
+                        item.severity === 'error'
+                          ? AlertCircle
+                          : item.severity === 'warning'
+                          ? AlertTriangle
+                          : Package;
+                      const iconColor =
+                        item.severity === 'error'
+                          ? 'var(--error-600)'
+                          : item.severity === 'warning'
+                          ? 'var(--warning-600)'
+                          : 'var(--info-600)';
+
+                      return (
+                        <div key={item.id} className={`notification-item ${item.severity}`}>
+                          <div className="notification-icon-box">
+                            <Icon size={16} style={{ color: iconColor }} />
+                          </div>
+                          <div className="notification-content">
+                            <div className="notification-title-row">
+                              <span className="notification-item-title">{item.title}</span>
+                              <span className="notification-item-time">{item.time}</span>
+                            </div>
+                            <p className="notification-item-msg">{item.message}</p>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setNotifications((prev) => prev.filter((n) => n.id !== item.id))
+                            }
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--neutral-400)',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              borderRadius: '4px',
+                            }}
+                            title="Dismiss"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* User Profile Area with Interactive Dropdown */}
           <div className="user-profile-container" ref={dropdownRef}>

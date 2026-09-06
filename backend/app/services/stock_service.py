@@ -33,13 +33,13 @@ class StockService:
     """Service handling stock balances, WAC valuation, and movement history."""
 
     def get_available_stock(self, db: Session, item_id: int, location_id: int) -> Decimal:
-        """Calculate available on-hand stock for an Item at a specific Location.
+        cache = getattr(db, "_stock_qty_cache", None)
+        if cache is None:
+            cache = {}
+            setattr(db, "_stock_qty_cache", cache)
+        if (item_id, location_id) in cache:
+            return cache[(item_id, location_id)]
 
-        Aggregates all chronological stock movements for this item and location.
-        Formula:
-            Available Stock = Opening + Inward - Outward + Return +/- Adjustment
-        (Distribution does not create a separate movement, preventing double deduction).
-        """
         stmt = (
             select(StockMovement)
             .where(
@@ -49,9 +49,17 @@ class StockService:
             .order_by(StockMovement.movement_date.asc(), StockMovement.movement_id.asc())
         )
         movements = db.scalars(stmt).all()
-        return calculate_stock_from_movements(movements)
+        res = calculate_stock_from_movements(movements)
+        cache[(item_id, location_id)] = res
+        return res
 
     def get_wac(self, db: Session, item_id: int, location_id: int) -> Decimal:
+        cache = getattr(db, "_stock_wac_cache", None)
+        if cache is None:
+            cache = {}
+            setattr(db, "_stock_wac_cache", cache)
+        if (item_id, location_id) in cache:
+            return cache[(item_id, location_id)]
         """Calculate current Weighted Average Cost (WAC) for an Item at a Location.
 
         Processes the stock ledger chronologically.
@@ -174,7 +182,9 @@ class StockService:
             if item and item.default_unit_cost is not None:
                 current_wac = to_decimal(item.default_unit_cost)
 
-        return quantize_currency(current_wac)
+        res = quantize_currency(current_wac)
+        cache[(item_id, location_id)] = res
+        return res
 
     def get_stock_by_item(self, db: Session, item_id: int) -> StockDetailResponse:
         """Retrieve detailed stock breakdown and WAC valuation for an item across all locations."""
