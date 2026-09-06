@@ -6,7 +6,9 @@ import StockAlertTable from '../../components/dashboard/StockAlertTable';
 import RecentTransactions from '../../components/dashboard/RecentTransactions';
 import CategoryStock from '../../components/dashboard/CategoryStock';
 import LocationStock from '../../components/dashboard/LocationStock';
+import DashboardCharts from '../../components/dashboard/DashboardCharts';
 import dashboardAPI from '../../api/dashboard';
+import stockAPI from '../../api/stock';
 
 import { Activity, RefreshCw, AlertCircle } from 'lucide-react';
 
@@ -19,6 +21,7 @@ export const DashboardPage = () => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [categoryStock, setCategoryStock] = useState([]);
   const [locationStock, setLocationStock] = useState([]);
+  const [recentMovements, setRecentMovements] = useState([]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -31,6 +34,7 @@ export const DashboardPage = () => {
         recentTxRes,
         catStockRes,
         locStockRes,
+        movementsRes,
       ] = await Promise.all([
         dashboardAPI.getSummary().catch(() => null),
         dashboardAPI.getLowStock().catch(() => []),
@@ -38,10 +42,14 @@ export const DashboardPage = () => {
         dashboardAPI.getRecentTransactions(10).catch(() => []),
         dashboardAPI.getCategoryStock().catch(() => []),
         dashboardAPI.getLocationStock().catch(() => []),
+        stockAPI.listMovements({ limit: 50 }).catch(() => []),
       ]);
 
       if (summaryRes) {
         setSummary(summaryRes);
+      }
+      if (movementsRes) {
+        setRecentMovements(movementsRes);
       }
 
       // Format stock alerts table
@@ -212,7 +220,15 @@ export const DashboardPage = () => {
         ))}
       </div>
 
-      {/* 3. Stock Alerts Section */}
+      {/* 3. Real-Time Interactive Inventory Analytics Charts */}
+      <DashboardCharts
+        categoryData={categoryStock}
+        locationData={locationStock}
+        summary={summary}
+        recentMovements={recentMovements}
+      />
+
+      {/* 4. Stock Alerts Section */}
       <div className="dashboard-section">
         <StockAlertTable alerts={stockAlerts} />
       </div>
