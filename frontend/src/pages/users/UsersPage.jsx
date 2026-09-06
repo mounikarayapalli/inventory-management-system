@@ -11,8 +11,7 @@ import usersAPI from '../../api/users';
 import { Plus, Users, Shield, UserCheck, AlertCircle, Edit } from 'lucide-react';
 
 export const UsersPage = () => {
-  const { currentRole, ROLES } = useRole();
-  const isAdmin = currentRole === ROLES.ADMIN;
+  const { isAdmin } = useRole();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
