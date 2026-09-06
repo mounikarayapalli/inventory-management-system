@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu,
   Bell,
-  User,
+  User as UserIcon,
   Settings,
   LogOut,
   ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
+import { useRole } from '../../context/RoleContext';
 
 export const Navbar = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
+  const { user, logout, activeRole } = useRole();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -40,8 +42,18 @@ export const Navbar = ({ onToggleSidebar }) => {
 
   const handleLogout = () => {
     setProfileDropdownOpen(false);
+    logout();
     navigate('/login');
   };
+
+  const displayName = user?.full_name || user?.username || 'Authenticated User';
+  const displayEmail = user?.email || `${user?.username || 'user'}@inventory.internal`;
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'AU';
 
   return (
     <header className="app-navbar">
@@ -66,7 +78,7 @@ export const Navbar = ({ onToggleSidebar }) => {
         <button
           className="navbar-icon-btn"
           aria-label="System notifications"
-          title="Notifications (3 unread)"
+          title="Notifications"
         >
           <Bell size={19} />
           <span className="notification-badge-dot" />
@@ -81,12 +93,12 @@ export const Navbar = ({ onToggleSidebar }) => {
             aria-haspopup="true"
             aria-label="User account menu"
           >
-            <div className="user-avatar">AU</div>
+            <div className="user-avatar">{initials}</div>
             <div className="user-info">
-              <span className="user-name">Admin User</span>
+              <span className="user-name">{displayName}</span>
               <span className="user-role">
                 <ShieldCheck size={12} style={{ display: 'inline', marginRight: '3px' }} />
-                Administrator
+                {activeRole}
               </span>
             </div>
             <ChevronDown size={14} className={`profile-chevron ${profileDropdownOpen ? 'open' : ''}`} />
@@ -96,8 +108,8 @@ export const Navbar = ({ onToggleSidebar }) => {
           {profileDropdownOpen && (
             <div className="profile-dropdown-menu" role="menu">
               <div className="dropdown-user-header">
-                <p className="dropdown-user-name">Admin User</p>
-                <p className="dropdown-user-email">admin@calibo-academy.internal</p>
+                <p className="dropdown-user-name">{displayName}</p>
+                <p className="dropdown-user-email">{displayEmail}</p>
               </div>
               <div className="dropdown-divider" />
 
@@ -106,7 +118,7 @@ export const Navbar = ({ onToggleSidebar }) => {
                 role="menuitem"
                 onClick={() => setProfileDropdownOpen(false)}
               >
-                <User size={16} />
+                <UserIcon size={16} />
                 <span>My Profile</span>
               </button>
 

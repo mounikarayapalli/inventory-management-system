@@ -1,17 +1,74 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import authAPI from '../api/auth';
+import { getToken, getStoredUser } from '../api/client';
 import { ROLES } from '../constants/navigation';
 
 const RoleContext = createContext();
 
+export const normalizeRole = (r) => {
+  if (!r) return ROLES.ADMIN;
+  const lower = String(r).toLowerCase();
+  if (lower === 'stock manager' || lower === 'stock_manager' || lower.includes('manager')) {
+    return ROLES.STOCK_MANAGER;
+  }
+  return ROLES.ADMIN;
+};
+
 export const RoleProvider = ({ children }) => {
-  // Temporary development state for testing Admin vs Stock Manager view modes
-  const [activeRole, setActiveRole] = useState(ROLES.ADMIN);
+  const [user, setUser] = useState(getStoredUser());
+  const [token, setTokenState] = useState(getToken());
+  const [loading, setLoading] = useState(true);
+
+  // Initialize and check current user session
+  useEffect(() => {
+    const initAuth = async () => {
+      const storedToken = getToken();
+      if (storedToken) {
+        try {
+          const currentUser = await authAPI.getMe();
+          setUser(currentUser);
+        } catch (err) {
+          // Token expired or invalid
+          authAPI.logout();
+          setUser(null);
+          setTokenState(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    initAuth();
+  }, []);
+
+  const login = async (username, password) => {
+    const tokenRes = await authAPI.login(username, password);
+    setTokenState(tokenRes.access_token);
+    const currentUser = await authAPI.getMe();
+    setUser(currentUser);
+    return currentUser;
+  };
+
+  const logout = () => {
+    authAPI.logout();
+    setUser(null);
+    setTokenState(null);
+  };
+
+  const rawRole = user?.role || user?.role_name || (token ? 'admin' : null);
+  const activeRole = normalizeRole(rawRole);
 
   const value = {
+    user,
+    token,
+    loading,
+    login,
+    logout,
     activeRole,
-    setActiveRole,
     isAdmin: activeRole === ROLES.ADMIN,
     isStockManager: activeRole === ROLES.STOCK_MANAGER,
+    isAuthenticated: !!token,
   };
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
@@ -20,41 +77,25 @@ export const RoleProvider = ({ children }) => {
 export const useRole = () => {
   const context = useContext(RoleContext);
   if (!context) {
-    // Fallback if rendered outside Provider
     return {
+      user: null,
+      token: null,
+      loading: false,
+      login: async () => {},
+      logout: () => {},
       activeRole: ROLES.ADMIN,
-      setActiveRole: () => {},
       isAdmin: true,
       isStockManager: false,
+      isAuthenticated: false,
     };
   }
   return context;
 };
 
-/* [DEV TEMPORARY WIDGET]
-   This component is isolated exclusively for development testing.
-   In production, the user role will be read directly from the backend/JWT session.
-*/
-export const DevRoleSwitcher = () => {
-  const { activeRole, setActiveRole } = useRole();
+// Backwards-compatible export
+export const useAuth = useRole;
 
-  return (
-    <div className="dev-role-switcher-bar">
-      <span className="dev-role-label">[DEV ONLY] View Mode:</span>
-      <button
-        className={`dev-role-btn ${activeRole === ROLES.ADMIN ? 'active' : ''}`}
-        onClick={() => setActiveRole(ROLES.ADMIN)}
-      >
-        Admin (Full Access)
-      </button>
-      <button
-        className={`dev-role-btn ${activeRole === ROLES.STOCK_MANAGER ? 'active' : ''}`}
-        onClick={() => setActiveRole(ROLES.STOCK_MANAGER)}
-      >
-        Stock Manager (View Only)
-      </button>
-    </div>
-  );
-};
+// Empty stub for legacy DevRoleSwitcher to prevent import breakage
+export const DevRoleSwitcher = () => null;
 
 export default RoleContext;

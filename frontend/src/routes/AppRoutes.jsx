@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useRole } from '../context/RoleContext';
 
 // Layout
 import AppLayout from '../components/layout/AppLayout';
@@ -33,21 +34,41 @@ import ReportsPage from '../pages/reports/ReportsPage';
 import UsersPage from '../pages/users/UsersPage';
 
 export const AppRoutes = () => {
+  const { isAuthenticated, loading } = useRole();
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--neutral-600)', fontSize: '0.95rem' }}>Loading authentication session...</p>
+      </div>
+    );
+  }
+
   return (
     <Routes>
       {/* Public Auth Route */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+      />
 
       {/* Application Shell Routes */}
-      <Route element={<AppLayout />}>
+      <Route element={isAuthenticated ? <AppLayout /> : <Navigate to="/login" replace />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
 
         {/* Master Routes */}
-        <Route path="/items" element={<ItemsPage />} />
-        <Route path="/categories" element={<CategoriesPage />} />
-        <Route path="/suppliers" element={<SuppliersPage />} />
-        <Route path="/locations" element={<LocationsPage />} />
+        <Route path="/masters/items" element={<ItemsPage />} />
+        <Route path="/items" element={<Navigate to="/masters/items" replace />} />
+
+        <Route path="/masters/categories" element={<CategoriesPage />} />
+        <Route path="/categories" element={<Navigate to="/masters/categories" replace />} />
+
+        <Route path="/masters/suppliers" element={<SuppliersPage />} />
+        <Route path="/suppliers" element={<Navigate to="/masters/suppliers" replace />} />
+
+        <Route path="/masters/locations" element={<LocationsPage />} />
+        <Route path="/locations" element={<Navigate to="/masters/locations" replace />} />
 
         {/* Inventory Transaction Routes */}
         <Route path="/inventory/opening-stock" element={<OpeningStockPage />} />
@@ -66,8 +87,8 @@ export const AppRoutes = () => {
         <Route path="/users" element={<UsersPage />} />
       </Route>
 
-      {/* Catch-all redirect to Dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all redirect */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
     </Routes>
   );
 };

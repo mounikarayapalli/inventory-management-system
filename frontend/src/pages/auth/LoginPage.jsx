@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, User, AlertCircle, Package } from 'lucide-react';
+import { Eye, EyeOff, Package, AlertCircle } from 'lucide-react';
+import { useRole } from '../../context/RoleContext';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+  const { login } = useRole();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [authError, setAuthError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -28,10 +31,18 @@ export const LoginPage = () => {
       return;
     }
 
-    // UI-only validation simulation: clear errors and navigate to dashboard
     setErrors({});
     setAuthError('');
-    navigate('/dashboard');
+    setSubmitting(true);
+
+    try {
+      await login(username.trim(), password);
+      navigate('/dashboard');
+    } catch (err) {
+      setAuthError(err.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -43,10 +54,10 @@ export const LoginPage = () => {
             <Package size={28} />
           </div>
           <h1 className="auth-title">Calibo AI Academy</h1>
-          <p className="auth-subtitle">Stock & Inventory Management MVP</p>
+          <p className="auth-subtitle">Stock & Inventory Management System</p>
         </div>
 
-        {/* Global Simulated Auth Error */}
+        {/* Global Auth Error */}
         {authError && (
           <div className="auth-alert-error">
             <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
@@ -61,15 +72,16 @@ export const LoginPage = () => {
           {/* Username Input */}
           <div className="form-group">
             <label htmlFor="username-input" className="form-label">
-              Username <span className="required">*</span>
+              Username or Email <span className="required">*</span>
             </label>
             <div className="input-wrapper">
               <input
                 id="username-input"
                 type="text"
                 className={`form-control ${errors.username ? 'is-invalid' : ''}`}
-                placeholder="Enter your username (e.g. admin)"
+                placeholder="Enter username or email"
                 value={username}
+                disabled={submitting}
                 onChange={(e) => {
                   setUsername(e.target.value);
                   if (errors.username) setErrors((prev) => ({ ...prev, username: null }));
@@ -96,6 +108,7 @@ export const LoginPage = () => {
                 className={`form-control ${errors.password ? 'is-invalid' : ''}`}
                 placeholder="Enter password"
                 value={password}
+                disabled={submitting}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
@@ -120,8 +133,8 @@ export const LoginPage = () => {
 
           {/* Submit Button */}
           <div style={{ marginTop: '1.75rem' }}>
-            <button type="submit" className="btn btn-primary btn-full btn-lg">
-              Sign In to System
+            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={submitting}>
+              {submitting ? 'Authenticating...' : 'Sign In to System'}
             </button>
           </div>
         </form>

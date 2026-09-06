@@ -1,41 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Badge from '../../components/common/Badge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import OutwardFormModal from '../../components/forms/OutwardFormModal';
-import { DevRoleSwitcher } from '../../context/RoleContext';
-
-import { MOCK_OUTWARD_DATA } from '../../constants/mockOutwardData';
-import {
-  REAL_COMPANY_ITEMS,
-  REAL_COMPANY_LOCATIONS,
-} from '../../constants/companyInventoryData';
-
-import { Plus, Search, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import itemsAPI from '../../api/items';
+import locationsAPI from '../../api/locations';
+import transactionsAPI from '../../api/transactions';
+import reportsAPI from '../../api/reports';
+import { Plus, Search, CheckCircle2 } from 'lucide-react';
 
 export const OutwardPage = () => {
-  const [outwardList, setOutwardList] = useState(MOCK_OUTWARD_DATA);
-  const [items] = useState(REAL_COMPANY_ITEMS);
-  const [locations] = useState(REAL_COMPANY_LOCATIONS);
+  const [outwardList, setOutwardList] = useState([]);
+  const [items, setItems] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form & Confirm state
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingTxn, setPendingTxn] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState('');
 
-  const filteredList = outwardList.filter(
-    (row) =>
-      row.outward_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.issued_to.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.purpose.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, locationsRes, outwardReportRes] = await Promise.all([
+        itemsAPI.listItems(),
+        locationsAPI.listLocations(),
+        reportsAPI.getOutwardReport(),
+      ]);
+      setItems(itemsRes || []);
+      setLocations(locationsRes || []);
+      setOutwardList(outwardReportRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load outward stock dispatches data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const filteredList = outwardList.filter((row) => {
+    const outwardNo = row.outward_no || '';
+    const itemName = row.item_name || '';
+    const issuedTo = row.issued_to || row.recipient || '';
+    const purpose = row.purpose || '';
+    const q = searchQuery.toLowerCase();
+    return (
+      outwardNo.toLowerCase().includes(q) ||
+      itemName.toLowerCase().includes(q) ||
+      issuedTo.toLowerCase().includes(q) ||
+      purpose.toLowerCase().includes(q)
+    );
+  });
 
   const handleOpenAdd = () => {
     setModalOpen(true);
@@ -47,33 +76,39 @@ export const OutwardPage = () => {
     setConfirmOpen(true);
   };
 
-  const handleConfirmTransaction = () => {
-    if (pendingTxn) {
-      const selectedItem = items.find((i) => i.id === pendingTxn.item_id);
-      const selectedLoc = locations.find((l) => l.id === pendingTxn.location_id);
+  const handleConfirmTransaction = async () => {
+    if (!pendingTxn) return;
+    setSubmitting(true);
+    try {
+      await transactionsAPI.createOutward({
+        item_id: Number(pendingTxn.item_id),
+        location_id: Number(pendingTxn.location_id),
+        quantity: Number(pendingTxn.quantity),
+        outward_no: pendingTxn.outward_no || null,
+        issued_to: pendingTxn.issued_to || null,
+        purpose: pendingTxn.purpose || null,
+        outward_date: pendingTxn.outward_date || null,
+        reference_no: pendingTxn.reference_no || null,
+        remarks: pendingTxn.remarks || null,
+      });
 
-      const newRecord = {
-        id: Date.now(),
-        ...pendingTxn,
-        item_code: selectedItem ? selectedItem.item_code : 'SKU',
-        item_name: selectedItem ? selectedItem.item_name : 'Item',
-        location_name: selectedLoc ? selectedLoc.location_name : 'Location',
-        already_distributed: 0,
-      };
-
-      setOutwardList([newRecord, ...outwardList]);
       setSuccessBanner('Stock outward transaction issued successfully.');
       setTimeout(() => setSuccessBanner(''), 4000);
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to record outward stock dispatch');
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setPendingTxn(null);
     }
-    setConfirmOpen(false);
-    setPendingTxn(null);
   };
 
   const columns = [
     {
       header: 'Outward No',
       key: 'outward_no',
-      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.outward_no}</code>,
+      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.outward_no || `OUT-${row.transaction_id || row.outward_id}`}</code>,
     },
     {
       header: 'Item',
@@ -83,39 +118,36 @@ export const OutwardPage = () => {
     {
       header: 'Location',
       key: 'location_name',
+      render: (row) => <span>{row.location_name || '—'}</span>,
     },
     {
       header: 'Quantity',
       key: 'quantity',
       render: (row) => (
         <span style={{ fontWeight: 600, color: 'var(--warning-700)' }}>
-          -{row.quantity} units
+          -{row.quantity}
         </span>
       ),
     },
     {
       header: 'Issued To',
       key: 'issued_to',
+      render: (row) => <span>{row.issued_to || row.recipient || '—'}</span>,
     },
     {
       header: 'Purpose',
       key: 'purpose',
+      render: (row) => <span>{row.purpose || '—'}</span>,
     },
     {
       header: 'Date',
       key: 'outward_date',
-    },
-    {
-      header: 'Status',
-      key: 'status',
-      render: () => <Badge variant="success">Completed</Badge>,
+      render: (row) => <span>{row.outward_date ? new Date(row.outward_date).toLocaleDateString() : '—'}</span>,
     },
   ];
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Stock Outward"
         subtitle="Track stock dispatches, sales orders, issues, and consumption."
@@ -158,12 +190,18 @@ export const OutwardPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredList}
-          emptyTitle="No outward transactions"
-          emptyDescription="Record stock dispatches and department issues."
-        />
+        {loading ? (
+          <LoadingState message="Loading outward stock dispatches..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredList}
+            emptyTitle="No outward transactions"
+            emptyDescription="Record stock dispatches and department issues."
+          />
+        )}
       </Card>
 
       <OutwardFormModal
@@ -180,8 +218,8 @@ export const OutwardPage = () => {
           onClose={() => setConfirmOpen(false)}
           onConfirm={handleConfirmTransaction}
           title="Confirm Stock Outward Issue"
-          message={`Are you sure you want to issue Outward ${pendingTxn.outward_no} (-${pendingTxn.quantity} units to ${pendingTxn.issued_to})?`}
-          confirmText="Confirm Issue"
+          message={`Are you sure you want to issue Outward ${pendingTxn.outward_no || ''} (-${pendingTxn.quantity} units to ${pendingTxn.issued_to || 'recipient'})?`}
+          confirmText={submitting ? 'Processing...' : 'Confirm Issue'}
         />
       )}
     </div>

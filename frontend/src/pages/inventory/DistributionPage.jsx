@@ -1,37 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Badge from '../../components/common/Badge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import DistributionFormModal from '../../components/forms/DistributionFormModal';
-import { DevRoleSwitcher } from '../../context/RoleContext';
-
-import { MOCK_DISTRIBUTION_DATA } from '../../constants/mockDistributionData';
-import { MOCK_OUTWARD_DATA } from '../../constants/mockOutwardData';
-
-import { Plus, Search, GitFork, CheckCircle2, Info } from 'lucide-react';
+import itemsAPI from '../../api/items';
+import locationsAPI from '../../api/locations';
+import transactionsAPI from '../../api/transactions';
+import reportsAPI from '../../api/reports';
+import { Plus, Search, CheckCircle2, Info } from 'lucide-react';
 
 export const DistributionPage = () => {
-  const [distributionList, setDistributionList] = useState(MOCK_DISTRIBUTION_DATA);
-  const [outwardRecords, setOutwardRecords] = useState(MOCK_OUTWARD_DATA);
+  const [distributionList, setDistributionList] = useState([]);
+  const [outwardRecords, setOutwardRecords] = useState([]);
+  const [items, setItems] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form & Confirm state
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingTxn, setPendingTxn] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState('');
 
-  const filteredList = distributionList.filter(
-    (row) =>
-      row.outward_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.recipient.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, locationsRes, outwardReportRes] = await Promise.all([
+        itemsAPI.listItems(),
+        locationsAPI.listLocations(),
+        reportsAPI.getOutwardReport(),
+      ]);
+      setItems(itemsRes || []);
+      setLocations(locationsRes || []);
+      setOutwardRecords(outwardReportRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load distribution data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const filteredList = distributionList.filter((row) => {
+    const outwardNo = row.outward_no || '';
+    const itemName = row.item_name || '';
+    const recipient = row.recipient || '';
+    const dept = row.department || '';
+    const q = searchQuery.toLowerCase();
+    return (
+      outwardNo.toLowerCase().includes(q) ||
+      itemName.toLowerCase().includes(q) ||
+      recipient.toLowerCase().includes(q) ||
+      dept.toLowerCase().includes(q)
+    );
+  });
 
   const handleOpenAdd = () => {
     setModalOpen(true);
@@ -43,29 +77,37 @@ export const DistributionPage = () => {
     setConfirmOpen(true);
   };
 
-  const handleConfirmTransaction = () => {
-    if (pendingTxn) {
-      const newRecord = {
-        id: Date.now(),
-        ...pendingTxn,
-      };
-
-      setDistributionList([newRecord, ...distributionList]);
-
-      // Update parent outward's already_distributed count
-      setOutwardRecords(
-        outwardRecords.map((o) =>
-          o.id === pendingTxn.outward_id
-            ? { ...o, already_distributed: (o.already_distributed || 0) + pendingTxn.quantity }
-            : o
-        )
-      );
+  const handleConfirmTransaction = async () => {
+    if (!pendingTxn) return;
+    setSubmitting(true);
+    try {
+      await transactionsAPI.createDistribution({
+        outward_id: pendingTxn.outward_id ? Number(pendingTxn.outward_id) : null,
+        item_id: Number(pendingTxn.item_id),
+        location_id: pendingTxn.location_id ? Number(pendingTxn.location_id) : null,
+        quantity: Number(pendingTxn.quantity),
+        recipient: pendingTxn.recipient || null,
+        batch: pendingTxn.batch || null,
+        department: pendingTxn.department || null,
+        purpose: pendingTxn.purpose || null,
+        distribution_date: pendingTxn.distribution_date || null,
+        remarks: pendingTxn.remarks || null,
+      });
 
       setSuccessBanner('Stock distribution recorded successfully.');
       setTimeout(() => setSuccessBanner(''), 4000);
+      setDistributionList([
+        { id: Date.now(), ...pendingTxn },
+        ...distributionList,
+      ]);
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to record distribution');
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setPendingTxn(null);
     }
-    setConfirmOpen(false);
-    setPendingTxn(null);
   };
 
   const columns = [
@@ -75,27 +117,29 @@ export const DistributionPage = () => {
       render: (row) => <code style={{ fontSize: '0.8rem' }}>DST-{row.id}</code>,
     },
     {
-      header: 'Parent Outward No',
+      header: 'Parent Outward',
       key: 'outward_no',
-      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.outward_no}</code>,
+      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.outward_no || (row.outward_id ? `OUT-${row.outward_id}` : '—')}</code>,
     },
     {
       header: 'Item',
       key: 'item_name',
-      render: (row) => <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name}</strong>,
+      render: (row) => <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name || `Item #${row.item_id}`}</strong>,
     },
     {
       header: 'Location',
       key: 'location_name',
+      render: (row) => <span>{row.location_name || '—'}</span>,
     },
     {
       header: 'Quantity',
       key: 'quantity',
-      render: (row) => <span style={{ fontWeight: 600 }}>{row.quantity} units</span>,
+      render: (row) => <span style={{ fontWeight: 600 }}>{row.quantity}</span>,
     },
     {
       header: 'Recipient',
       key: 'recipient',
+      render: (row) => <span>{row.recipient || '—'}</span>,
     },
     {
       header: 'Batch',
@@ -105,21 +149,17 @@ export const DistributionPage = () => {
     {
       header: 'Department',
       key: 'department',
+      render: (row) => <span>{row.department || '—'}</span>,
     },
     {
       header: 'Purpose',
       key: 'purpose',
-    },
-    {
-      header: 'Date',
-      key: 'distribution_date',
+      render: (row) => <span>{row.purpose || '—'}</span>,
     },
   ];
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Stock Distribution"
         subtitle="Record end-user distribution details linked to parent Outward dispatches."
@@ -130,7 +170,6 @@ export const DistributionPage = () => {
         }
       />
 
-      {/* Info Banner */}
       <div
         style={{
           padding: '0.75rem 1rem',
@@ -183,12 +222,18 @@ export const DistributionPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredList}
-          emptyTitle="No distribution records"
-          emptyDescription="Record student/department distributions linked to parent Outward dispatches."
-        />
+        {loading ? (
+          <LoadingState message="Loading distribution records..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredList}
+            emptyTitle="No distribution records"
+            emptyDescription="Record student/department distributions linked to parent Outward dispatches."
+          />
+        )}
       </Card>
 
       <DistributionFormModal
@@ -196,6 +241,8 @@ export const DistributionPage = () => {
         onClose={() => setModalOpen(false)}
         onSubmitTransaction={handleFormSubmit}
         outwardRecords={outwardRecords}
+        items={items}
+        locations={locations}
       />
 
       {pendingTxn && (
@@ -204,8 +251,8 @@ export const DistributionPage = () => {
           onClose={() => setConfirmOpen(false)}
           onConfirm={handleConfirmTransaction}
           title="Confirm Stock Distribution Entry"
-          message={`Are you sure you want to record distribution of ${pendingTxn.quantity} units for Outward ${pendingTxn.outward_no} to ${pendingTxn.recipient}?`}
-          confirmText="Confirm Distribution"
+          message={`Are you sure you want to record distribution of ${pendingTxn.quantity} units to ${pendingTxn.recipient || 'recipient'}?`}
+          confirmText={submitting ? 'Processing...' : 'Confirm Distribution'}
         />
       )}
     </div>

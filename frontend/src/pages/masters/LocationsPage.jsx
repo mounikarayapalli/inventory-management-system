@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import LocationFormModal from '../../components/forms/LocationFormModal';
-import { useRole, DevRoleSwitcher } from '../../context/RoleContext';
-
-import { REAL_COMPANY_LOCATIONS } from '../../constants/companyInventoryData';
-
+import { useRole } from '../../context/RoleContext';
+import locationsAPI from '../../api/locations';
 import { Plus, Search, Eye, Edit2 } from 'lucide-react';
 
 export const LocationsPage = () => {
   const { isAdmin } = useRole();
-  const [locations, setLocations] = useState(REAL_COMPANY_LOCATIONS);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State
@@ -22,8 +24,25 @@ export const LocationsPage = () => {
   const [modalMode, setModalMode] = useState('add');
   const [selectedLocation, setSelectedLocation] = useState(null);
 
+  const loadLocations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await locationsAPI.listLocations();
+      setLocations(data || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load locations');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLocations();
+  }, [loadLocations]);
+
   const filteredLocations = locations.filter((loc) =>
-    loc.location_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (loc.location_name || loc.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleOpenAdd = () => {
@@ -44,17 +63,18 @@ export const LocationsPage = () => {
     setModalOpen(true);
   };
 
-  const handleSaveLocation = (formData) => {
-    if (modalMode === 'add') {
-      const newLoc = {
-        id: Date.now(),
-        ...formData,
-      };
-      setLocations([newLoc, ...locations]);
-    } else if (modalMode === 'edit' && selectedLocation) {
-      setLocations(
-        locations.map((l) => (l.id === selectedLocation.id ? { ...l, ...formData } : l))
-      );
+  const handleSaveLocation = async (formData) => {
+    try {
+      const locId = selectedLocation?.id || selectedLocation?.location_id;
+      if (modalMode === 'add') {
+        await locationsAPI.createLocation(formData);
+      } else if (modalMode === 'edit' && locId) {
+        await locationsAPI.updateLocation(locId, formData);
+      }
+      setModalOpen(false);
+      await loadLocations();
+    } catch (err) {
+      alert(err.message || 'Failed to save location');
     }
   };
 
@@ -63,8 +83,13 @@ export const LocationsPage = () => {
       header: 'Location Name',
       key: 'location_name',
       render: (row) => (
-        <strong style={{ color: 'var(--neutral-900)' }}>{row.location_name}</strong>
+        <strong style={{ color: 'var(--neutral-900)' }}>{row.location_name || row.name}</strong>
       ),
+    },
+    {
+      header: 'Code',
+      key: 'code',
+      render: (row) => (row.code ? <code>{row.code}</code> : <span>—</span>),
     },
     {
       header: 'Description',
@@ -113,8 +138,6 @@ export const LocationsPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Locations"
         subtitle="Manage inventory storage locations."
@@ -139,12 +162,18 @@ export const LocationsPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredLocations}
-          emptyTitle="No locations found"
-          emptyDescription="Try adjusting your search filter or add a new location."
-        />
+        {loading ? (
+          <LoadingState message="Loading locations..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadLocations} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredLocations}
+            emptyTitle="No locations found"
+            emptyDescription="Try adjusting your search filter or add a new location."
+          />
+        )}
       </Card>
 
       <LocationFormModal

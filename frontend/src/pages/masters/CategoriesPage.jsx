@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import CategoryFormModal from '../../components/forms/CategoryFormModal';
-import { useRole, DevRoleSwitcher } from '../../context/RoleContext';
-
-import { REAL_COMPANY_CATEGORIES } from '../../constants/companyInventoryData';
-
+import { useRole } from '../../context/RoleContext';
+import categoriesAPI from '../../api/categories';
 import { Plus, Search, Eye, Edit2 } from 'lucide-react';
 
 export const CategoriesPage = () => {
   const { isAdmin } = useRole();
-  const [categories, setCategories] = useState(REAL_COMPANY_CATEGORIES);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State
@@ -22,8 +24,25 @@ export const CategoriesPage = () => {
   const [modalMode, setModalMode] = useState('add');
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  const loadCategories = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await categoriesAPI.listCategories();
+      setCategories(data || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load categories');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
   const filteredCategories = categories.filter((cat) =>
-    cat.category_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (cat.category_name || cat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleOpenAdd = () => {
@@ -44,17 +63,18 @@ export const CategoriesPage = () => {
     setModalOpen(true);
   };
 
-  const handleSaveCategory = (formData) => {
-    if (modalMode === 'add') {
-      const newCat = {
-        id: Date.now(),
-        ...formData,
-      };
-      setCategories([newCat, ...categories]);
-    } else if (modalMode === 'edit' && selectedCategory) {
-      setCategories(
-        categories.map((c) => (c.id === selectedCategory.id ? { ...c, ...formData } : c))
-      );
+  const handleSaveCategory = async (formData) => {
+    try {
+      const catId = selectedCategory?.id || selectedCategory?.category_id;
+      if (modalMode === 'add') {
+        await categoriesAPI.createCategory(formData);
+      } else if (modalMode === 'edit' && catId) {
+        await categoriesAPI.updateCategory(catId, formData);
+      }
+      setModalOpen(false);
+      await loadCategories();
+    } catch (err) {
+      alert(err.message || 'Failed to save category');
     }
   };
 
@@ -63,8 +83,13 @@ export const CategoriesPage = () => {
       header: 'Category Name',
       key: 'category_name',
       render: (row) => (
-        <strong style={{ color: 'var(--neutral-900)' }}>{row.category_name}</strong>
+        <strong style={{ color: 'var(--neutral-900)' }}>{row.category_name || row.name}</strong>
       ),
+    },
+    {
+      header: 'Description',
+      key: 'description',
+      render: (row) => <span>{row.description || '—'}</span>,
     },
     {
       header: 'Status',
@@ -108,8 +133,6 @@ export const CategoriesPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Categories"
         subtitle="Manage inventory item categories."
@@ -134,12 +157,18 @@ export const CategoriesPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredCategories}
-          emptyTitle="No categories found"
-          emptyDescription="Try adjusting your search filter or add a new category."
-        />
+        {loading ? (
+          <LoadingState message="Loading categories..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadCategories} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredCategories}
+            emptyTitle="No categories found"
+            emptyDescription="Try adjusting your search filter or add a new category."
+          />
+        )}
       </Card>
 
       <CategoryFormModal

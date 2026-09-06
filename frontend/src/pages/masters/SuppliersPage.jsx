@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import SupplierFormModal from '../../components/forms/SupplierFormModal';
-import { useRole, DevRoleSwitcher } from '../../context/RoleContext';
-
-import { REAL_COMPANY_SUPPLIERS } from '../../constants/companyInventoryData';
-
+import { useRole } from '../../context/RoleContext';
+import suppliersAPI from '../../api/suppliers';
 import { Plus, Search, Eye, Edit2 } from 'lucide-react';
 
 export const SuppliersPage = () => {
   const { isAdmin } = useRole();
-  const [suppliers, setSuppliers] = useState(REAL_COMPANY_SUPPLIERS);
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State
@@ -22,9 +24,26 @@ export const SuppliersPage = () => {
   const [modalMode, setModalMode] = useState('add');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
 
+  const loadSuppliers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await suppliersAPI.listSuppliers();
+      setSuppliers(data || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load suppliers');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSuppliers();
+  }, [loadSuppliers]);
+
   const filteredSuppliers = suppliers.filter(
     (sup) =>
-      sup.supplier_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sup.supplier_name || sup.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (sup.contact_person && sup.contact_person.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -46,17 +65,18 @@ export const SuppliersPage = () => {
     setModalOpen(true);
   };
 
-  const handleSaveSupplier = (formData) => {
-    if (modalMode === 'add') {
-      const newSup = {
-        id: Date.now(),
-        ...formData,
-      };
-      setSuppliers([newSup, ...suppliers]);
-    } else if (modalMode === 'edit' && selectedSupplier) {
-      setSuppliers(
-        suppliers.map((s) => (s.id === selectedSupplier.id ? { ...s, ...formData } : s))
-      );
+  const handleSaveSupplier = async (formData) => {
+    try {
+      const supId = selectedSupplier?.id || selectedSupplier?.supplier_id;
+      if (modalMode === 'add') {
+        await suppliersAPI.createSupplier(formData);
+      } else if (modalMode === 'edit' && supId) {
+        await suppliersAPI.updateSupplier(supId, formData);
+      }
+      setModalOpen(false);
+      await loadSuppliers();
+    } catch (err) {
+      alert(err.message || 'Failed to save supplier');
     }
   };
 
@@ -65,7 +85,7 @@ export const SuppliersPage = () => {
       header: 'Supplier Name',
       key: 'supplier_name',
       render: (row) => (
-        <strong style={{ color: 'var(--neutral-900)' }}>{row.supplier_name}</strong>
+        <strong style={{ color: 'var(--neutral-900)' }}>{row.supplier_name || row.name}</strong>
       ),
     },
     {
@@ -134,8 +154,6 @@ export const SuppliersPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Suppliers"
         subtitle="Manage inventory suppliers and contact information."
@@ -160,12 +178,18 @@ export const SuppliersPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredSuppliers}
-          emptyTitle="No suppliers found"
-          emptyDescription="Try adjusting your search filter or add a new supplier."
-        />
+        {loading ? (
+          <LoadingState message="Loading suppliers..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadSuppliers} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredSuppliers}
+            emptyTitle="No suppliers found"
+            emptyDescription="Try adjusting your search filter or add a new supplier."
+          />
+        )}
       </Card>
 
       <SupplierFormModal

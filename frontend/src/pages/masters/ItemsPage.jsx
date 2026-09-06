@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import ItemFormModal from '../../components/forms/ItemFormModal';
-import { useRole, DevRoleSwitcher } from '../../context/RoleContext';
-
-import {
-  REAL_COMPANY_ITEMS,
-  REAL_COMPANY_CATEGORIES,
-} from '../../constants/companyInventoryData';
-
+import { useRole } from '../../context/RoleContext';
+import itemsAPI from '../../api/items';
+import categoriesAPI from '../../api/categories';
 import { Plus, Search, Eye, Edit2 } from 'lucide-react';
 
 export const ItemsPage = () => {
   const { isAdmin } = useRole();
-  const [items, setItems] = useState(REAL_COMPANY_ITEMS);
-  const [categories] = useState(REAL_COMPANY_CATEGORIES);
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State
@@ -26,17 +26,38 @@ export const ItemsPage = () => {
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit' | 'view'
   const [selectedItem, setSelectedItem] = useState(null);
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, categoriesRes] = await Promise.all([
+        itemsAPI.listItems(),
+        categoriesAPI.listCategories(),
+      ]);
+      setItems(itemsRes || []);
+      setCategories(categoriesRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load items data from backend');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   // Category lookup helper
   const getCategoryName = (catId) => {
-    const found = categories.find((c) => c.id === catId);
-    return found ? found.category_name : `Category #${catId}`;
+    const found = categories.find((c) => (c.id || c.category_id) === catId);
+    return found ? (found.category_name || found.name) : `Category #${catId}`;
   };
 
   // Client-side search filter
   const filteredItems = items.filter(
     (item) =>
-      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.item_code.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.item_name || item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.item_code || item.sku || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleOpenAdd = () => {
@@ -57,17 +78,18 @@ export const ItemsPage = () => {
     setModalOpen(true);
   };
 
-  const handleSaveItem = (formData) => {
-    if (modalMode === 'add') {
-      const newItem = {
-        id: Date.now(),
-        ...formData,
-      };
-      setItems([newItem, ...items]);
-    } else if (modalMode === 'edit' && selectedItem) {
-      setItems(
-        items.map((i) => (i.id === selectedItem.id ? { ...i, ...formData } : i))
-      );
+  const handleSaveItem = async (formData) => {
+    try {
+      const itemId = selectedItem?.id || selectedItem?.item_id;
+      if (modalMode === 'add') {
+        await itemsAPI.createItem(formData);
+      } else if (modalMode === 'edit' && itemId) {
+        await itemsAPI.updateItem(itemId, formData);
+      }
+      setModalOpen(false);
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to save item');
     }
   };
 
@@ -77,7 +99,7 @@ export const ItemsPage = () => {
       key: 'item_code',
       render: (row) => (
         <code style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary-700)' }}>
-          {row.item_code}
+          {row.item_code || row.sku}
         </code>
       ),
     },
@@ -85,13 +107,13 @@ export const ItemsPage = () => {
       header: 'Item Name',
       key: 'item_name',
       render: (row) => (
-        <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name}</strong>
+        <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name || row.name}</strong>
       ),
     },
     {
       header: 'Category',
       key: 'category_id',
-      render: (row) => <Badge variant="neutral">{getCategoryName(row.category_id)}</Badge>,
+      render: (row) => <Badge variant="neutral">{row.category_name || getCategoryName(row.category_id)}</Badge>,
     },
     {
       header: 'Unit',
@@ -100,14 +122,14 @@ export const ItemsPage = () => {
     {
       header: 'Min Level',
       key: 'minimum_level',
-      render: (row) => <span>{row.minimum_level} units</span>,
+      render: (row) => <span>{row.minimum_level ?? row.min_stock_level ?? 0} units</span>,
     },
     {
       header: 'Default Unit Cost',
       key: 'default_unit_cost',
       render: (row) => (
         <span style={{ fontWeight: 600 }}>
-          {row.default_unit_cost !== undefined
+          {row.default_unit_cost !== null && row.default_unit_cost !== undefined
             ? `₹${Number(row.default_unit_cost).toFixed(2)}`
             : '—'}
         </span>
@@ -155,8 +177,6 @@ export const ItemsPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Items Master"
         subtitle="Manage inventory items and their category information."
@@ -181,12 +201,18 @@ export const ItemsPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredItems}
-          emptyTitle="No items found"
-          emptyDescription="Try adjusting your search filter or add a new item."
-        />
+        {loading ? (
+          <LoadingState message="Loading catalog items..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredItems}
+            emptyTitle="No items found"
+            emptyDescription="Try adjusting your search filter or add a new item."
+          />
+        )}
       </Card>
 
       <ItemFormModal

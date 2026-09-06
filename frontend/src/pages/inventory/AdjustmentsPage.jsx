@@ -1,27 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Badge from '../../components/common/Badge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import AdjustmentFormModal from '../../components/forms/AdjustmentFormModal';
-import { useRole, DevRoleSwitcher } from '../../context/RoleContext';
-
-import { MOCK_ADJUSTMENTS_DATA } from '../../constants/mockAdjustmentsData';
-import {
-  REAL_COMPANY_ITEMS,
-  REAL_COMPANY_LOCATIONS,
-} from '../../constants/companyInventoryData';
-
+import { useRole } from '../../context/RoleContext';
+import itemsAPI from '../../api/items';
+import locationsAPI from '../../api/locations';
+import transactionsAPI from '../../api/transactions';
 import { Plus, Search, Eye, Edit2, CheckCircle2 } from 'lucide-react';
 
 export const AdjustmentsPage = () => {
   const { isAdmin } = useRole();
-  const [adjustmentsList, setAdjustmentsList] = useState(MOCK_ADJUSTMENTS_DATA);
-  const [items] = useState(REAL_COMPANY_ITEMS);
-  const [locations] = useState(REAL_COMPANY_LOCATIONS);
+  const [adjustmentsList, setAdjustmentsList] = useState([]);
+  const [items, setItems] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form & Confirm state
@@ -30,14 +29,54 @@ export const AdjustmentsPage = () => {
   const [selectedAdjustment, setSelectedAdjustment] = useState(null);
   const [pendingTxn, setPendingTxn] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState('');
 
-  const filteredList = adjustmentsList.filter(
-    (row) =>
-      row.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.location_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, locationsRes, adjRes] = await Promise.all([
+        itemsAPI.listItems(),
+        locationsAPI.listLocations(),
+        transactionsAPI.listAdjustments(),
+      ]);
+      setItems(itemsRes || []);
+      setLocations(locationsRes || []);
+      setAdjustmentsList(adjRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load stock adjustments');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Lookup helpers
+  const getItemName = (id) => {
+    const found = items.find((i) => (i.id || i.item_id) === id);
+    return found ? (found.item_name || found.name) : `Item #${id}`;
+  };
+
+  const getLocationName = (id) => {
+    const found = locations.find((l) => (l.id || l.location_id) === id);
+    return found ? (found.location_name || found.name) : `Location #${id}`;
+  };
+
+  const filteredList = adjustmentsList.filter((row) => {
+    const itemName = row.item_name || getItemName(row.item_id);
+    const reason = row.reason || '';
+    const locName = row.location_name || getLocationName(row.location_id);
+    const q = searchQuery.toLowerCase();
+    return (
+      itemName.toLowerCase().includes(q) ||
+      reason.toLowerCase().includes(q) ||
+      locName.toLowerCase().includes(q)
+    );
+  });
 
   const handleOpenAdd = () => {
     setSelectedAdjustment(null);
@@ -63,57 +102,61 @@ export const AdjustmentsPage = () => {
     setConfirmOpen(true);
   };
 
-  const handleConfirmTransaction = () => {
-    if (pendingTxn) {
-      const selectedItem = items.find((i) => i.id === pendingTxn.item_id);
-      const selectedLoc = locations.find((l) => l.id === pendingTxn.location_id);
-
+  const handleConfirmTransaction = async () => {
+    if (!pendingTxn) return;
+    setSubmitting(true);
+    try {
       if (modalMode === 'add') {
-        const newRecord = {
-          id: Date.now(),
-          ...pendingTxn,
-          item_code: selectedItem ? selectedItem.item_code : 'SKU',
-          item_name: selectedItem ? selectedItem.item_name : 'Item',
-          location_name: selectedLoc ? selectedLoc.location_name : 'Location',
-          created_by: 'Admin User',
-          status: 'Completed',
-        };
-        setAdjustmentsList([newRecord, ...adjustmentsList]);
-        setSuccessBanner('Stock adjustment transaction created successfully.');
+        await transactionsAPI.createAdjustment({
+          item_id: Number(pendingTxn.item_id),
+          location_id: Number(pendingTxn.location_id),
+          adjusted_quantity: Number(pendingTxn.quantity_change ?? pendingTxn.adjusted_quantity),
+          reason: pendingTxn.reason || 'Audit Adjustment',
+          adjustment_date: pendingTxn.adjustment_date || null,
+          remarks: pendingTxn.remarks || null,
+        });
+        setSuccessBanner('Stock adjustment created successfully.');
       } else if (modalMode === 'edit' && selectedAdjustment) {
-        setAdjustmentsList(
-          adjustmentsList.map((a) =>
-            a.id === selectedAdjustment.id ? { ...a, ...pendingTxn } : a
-          )
-        );
+        const adjId = selectedAdjustment.adjustment_id || selectedAdjustment.id;
+        await transactionsAPI.updateAdjustment(adjId, {
+          reason: pendingTxn.reason || 'Updated reason',
+          remarks: pendingTxn.remarks || null,
+        });
         setSuccessBanner('Stock adjustment updated successfully.');
       }
       setTimeout(() => setSuccessBanner(''), 4000);
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to process stock adjustment');
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setPendingTxn(null);
     }
-    setConfirmOpen(false);
-    setPendingTxn(null);
   };
 
   const columns = [
     {
-      header: 'Item Code',
-      key: 'item_code',
-      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.item_code}</code>,
+      header: 'Adjustment ID',
+      key: 'id',
+      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.adjustment_id || row.id}</code>,
     },
     {
       header: 'Item Name',
       key: 'item_name',
-      render: (row) => <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name}</strong>,
+      render: (row) => <strong style={{ color: 'var(--neutral-900)' }}>{row.item_name || getItemName(row.item_id)}</strong>,
     },
     {
       header: 'Location',
       key: 'location_name',
+      render: (row) => <span>{row.location_name || getLocationName(row.location_id)}</span>,
     },
     {
-      header: 'Quantity Change',
+      header: 'Quantity Delta',
       key: 'quantity_change',
       render: (row) => {
-        const isPositive = Number(row.quantity_change) > 0;
+        const qty = row.quantity_change ?? row.adjusted_quantity ?? 0;
+        const isPositive = Number(qty) > 0;
         return (
           <span
             style={{
@@ -121,7 +164,7 @@ export const AdjustmentsPage = () => {
               color: isPositive ? 'var(--success-700)' : 'var(--error-600)',
             }}
           >
-            {isPositive ? `+${row.quantity_change}` : row.quantity_change} units
+            {isPositive ? `+${qty}` : qty}
           </span>
         );
       },
@@ -129,14 +172,12 @@ export const AdjustmentsPage = () => {
     {
       header: 'Reason',
       key: 'reason',
+      render: (row) => <span>{row.reason || '—'}</span>,
     },
     {
-      header: 'Adjustment Date',
+      header: 'Date',
       key: 'adjustment_date',
-    },
-    {
-      header: 'Created By',
-      key: 'created_by',
+      render: (row) => <span>{row.adjustment_date ? new Date(row.adjustment_date).toLocaleDateString() : '—'}</span>,
     },
     {
       header: 'Actions',
@@ -171,8 +212,6 @@ export const AdjustmentsPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Stock Adjustment"
         subtitle="Reconcile physical stock counts, wastage, damages, and audit variances."
@@ -217,12 +256,18 @@ export const AdjustmentsPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredList}
-          emptyTitle="No stock adjustments"
-          emptyDescription="Physical audit stock adjustments will render here."
-        />
+        {loading ? (
+          <LoadingState message="Loading stock adjustments..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredList}
+            emptyTitle="No stock adjustments"
+            emptyDescription="Physical audit stock adjustments will render here."
+          />
+        )}
       </Card>
 
       <AdjustmentFormModal
@@ -241,8 +286,8 @@ export const AdjustmentsPage = () => {
           onClose={() => setConfirmOpen(false)}
           onConfirm={handleConfirmTransaction}
           title="Confirm Stock Adjustment"
-          message={`Are you sure you want to ${modalMode === 'add' ? 'create' : 'update'} stock adjustment of ${pendingTxn.quantity_change > 0 ? `+${pendingTxn.quantity_change}` : pendingTxn.quantity_change} units?`}
-          confirmText="Confirm Adjustment"
+          message={`Are you sure you want to ${modalMode === 'add' ? 'create' : 'update'} stock adjustment?`}
+          confirmText={submitting ? 'Processing...' : 'Confirm Adjustment'}
         />
       )}
     </div>

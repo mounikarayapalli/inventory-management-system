@@ -1,43 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Badge from '../../components/common/Badge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import InwardFormModal from '../../components/forms/InwardFormModal';
-import { DevRoleSwitcher } from '../../context/RoleContext';
-
-import { MOCK_INWARD_DATA } from '../../constants/mockInwardData';
-import {
-  REAL_COMPANY_ITEMS,
-  REAL_COMPANY_SUPPLIERS,
-  REAL_COMPANY_LOCATIONS,
-} from '../../constants/companyInventoryData';
-
-import { Plus, Search, ArrowDownLeft, CheckCircle2 } from 'lucide-react';
+import itemsAPI from '../../api/items';
+import suppliersAPI from '../../api/suppliers';
+import locationsAPI from '../../api/locations';
+import transactionsAPI from '../../api/transactions';
+import reportsAPI from '../../api/reports';
+import { Plus, Search, CheckCircle2 } from 'lucide-react';
 
 export const InwardPage = () => {
-  const [inwardList, setInwardList] = useState(MOCK_INWARD_DATA);
-  const [items] = useState(REAL_COMPANY_ITEMS);
-  const [suppliers] = useState(REAL_COMPANY_SUPPLIERS);
-  const [locations] = useState(REAL_COMPANY_LOCATIONS);
+  const [inwardList, setInwardList] = useState([]);
+  const [items, setItems] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form & Confirm state
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingTxn, setPendingTxn] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState('');
 
-  const filteredList = inwardList.filter(
-    (row) =>
-      row.inward_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.supplier_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.location_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, suppliersRes, locationsRes, inwardReportRes] = await Promise.all([
+        itemsAPI.listItems(),
+        suppliersAPI.listSuppliers(),
+        locationsAPI.listLocations(),
+        reportsAPI.getInwardReport(),
+      ]);
+      setItems(itemsRes || []);
+      setSuppliers(suppliersRes || []);
+      setLocations(locationsRes || []);
+      setInwardList(inwardReportRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load inward stock receipts data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const filteredList = inwardList.filter((row) => {
+    const inwardNo = row.inward_no || '';
+    const itemName = row.item_name || '';
+    const supName = row.supplier_name || '';
+    const locName = row.location_name || '';
+    const q = searchQuery.toLowerCase();
+    return (
+      inwardNo.toLowerCase().includes(q) ||
+      itemName.toLowerCase().includes(q) ||
+      supName.toLowerCase().includes(q) ||
+      locName.toLowerCase().includes(q)
+    );
+  });
 
   const handleOpenAdd = () => {
     setModalOpen(true);
@@ -49,34 +80,40 @@ export const InwardPage = () => {
     setConfirmOpen(true);
   };
 
-  const handleConfirmTransaction = () => {
-    if (pendingTxn) {
-      const selectedItem = items.find((i) => i.id === pendingTxn.item_id);
-      const selectedSup = suppliers.find((s) => s.id === pendingTxn.supplier_id);
-      const selectedLoc = locations.find((l) => l.id === pendingTxn.location_id);
+  const handleConfirmTransaction = async () => {
+    if (!pendingTxn) return;
+    setSubmitting(true);
+    try {
+      await transactionsAPI.createInward({
+        item_id: Number(pendingTxn.item_id),
+        location_id: Number(pendingTxn.location_id),
+        supplier_id: Number(pendingTxn.supplier_id),
+        quantity: Number(pendingTxn.quantity),
+        unit_cost: Number(pendingTxn.unit_cost),
+        inward_no: pendingTxn.inward_no || null,
+        total_cost: pendingTxn.total_cost ? Number(pendingTxn.total_cost) : null,
+        inward_date: pendingTxn.inward_date || null,
+        invoice_no: pendingTxn.invoice_no || null,
+        remarks: pendingTxn.remarks || null,
+      });
 
-      const newRecord = {
-        id: Date.now(),
-        ...pendingTxn,
-        item_code: selectedItem ? selectedItem.item_code : 'SKU',
-        item_name: selectedItem ? selectedItem.item_name : 'Item',
-        supplier_name: selectedSup ? selectedSup.supplier_name : 'Supplier',
-        location_name: selectedLoc ? selectedLoc.location_name : 'Location',
-      };
-
-      setInwardList([newRecord, ...inwardList]);
       setSuccessBanner('Stock inward receipt (GRN) created successfully.');
       setTimeout(() => setSuccessBanner(''), 4000);
+      await loadData();
+    } catch (err) {
+      alert(err.message || 'Failed to record inward stock receipt');
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setPendingTxn(null);
     }
-    setConfirmOpen(false);
-    setPendingTxn(null);
   };
 
   const columns = [
     {
       header: 'Inward No',
       key: 'inward_no',
-      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.inward_no}</code>,
+      render: (row) => <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.inward_no || `INW-${row.transaction_id || row.inward_id}`}</code>,
     },
     {
       header: 'Item',
@@ -86,17 +123,19 @@ export const InwardPage = () => {
     {
       header: 'Supplier',
       key: 'supplier_name',
+      render: (row) => <span>{row.supplier_name || '—'}</span>,
     },
     {
       header: 'Location',
       key: 'location_name',
+      render: (row) => <span>{row.location_name || '—'}</span>,
     },
     {
       header: 'Quantity',
       key: 'quantity',
       render: (row) => (
         <span style={{ fontWeight: 600, color: 'var(--success-700)' }}>
-          +{row.quantity} units
+          +{row.quantity}
         </span>
       ),
     },
@@ -117,6 +156,7 @@ export const InwardPage = () => {
     {
       header: 'Date',
       key: 'inward_date',
+      render: (row) => <span>{row.inward_date ? new Date(row.inward_date).toLocaleDateString() : '—'}</span>,
     },
     {
       header: 'Remarks',
@@ -127,8 +167,6 @@ export const InwardPage = () => {
 
   return (
     <div>
-      <DevRoleSwitcher />
-
       <PageHeader
         title="Stock Inward"
         subtitle="Record received stock from suppliers, purchase orders, and goods receipts."
@@ -171,12 +209,18 @@ export const InwardPage = () => {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          data={filteredList}
-          emptyTitle="No inward transactions"
-          emptyDescription="Record goods receipt notes (GRN) for received inventory stock."
-        />
+        {loading ? (
+          <LoadingState message="Loading stock inward receipts..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredList}
+            emptyTitle="No inward transactions"
+            emptyDescription="Record goods receipt notes (GRN) for received inventory stock."
+          />
+        )}
       </Card>
 
       <InwardFormModal
@@ -194,8 +238,8 @@ export const InwardPage = () => {
           onClose={() => setConfirmOpen(false)}
           onConfirm={handleConfirmTransaction}
           title="Confirm Stock Inward Receipt"
-          message={`Are you sure you want to record Inward ${pendingTxn.inward_no} (+${pendingTxn.quantity} units, Total Cost ₹${pendingTxn.total_cost})?`}
-          confirmText="Confirm Receipt"
+          message={`Are you sure you want to record Inward ${pendingTxn.inward_no || ''} (+${pendingTxn.quantity} units, Total Cost ₹${pendingTxn.total_cost})?`}
+          confirmText={submitting ? 'Processing...' : 'Confirm Receipt'}
         />
       )}
     </div>

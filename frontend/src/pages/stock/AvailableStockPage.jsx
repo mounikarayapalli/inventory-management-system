@@ -1,33 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorState from '../../components/common/ErrorState';
 import StockSummaryCard from '../../components/stock/StockSummaryCard';
 import StockFilters from '../../components/stock/StockFilters';
 import StockTable from '../../components/stock/StockTable';
 import StockDetailDrawer from '../../components/stock/StockDetailDrawer';
-import DevRoleSwitcher from '../../context/RoleContext';
-
-import { MOCK_STOCK_OVERVIEW_DATA } from '../../constants/mockStockOverviewData';
-import {
-  REAL_COMPANY_ITEMS,
-  REAL_COMPANY_LOCATIONS,
-  REAL_COMPANY_CATEGORIES,
-} from '../../constants/companyInventoryData';
-
+import stockAPI from '../../api/stock';
+import itemsAPI from '../../api/items';
+import locationsAPI from '../../api/locations';
+import categoriesAPI from '../../api/categories';
 import {
   Package,
   Warehouse,
   IndianRupee,
   AlertTriangle,
   AlertOctagon,
-  CheckCircle2,
 } from 'lucide-react';
 
 export const AvailableStockPage = () => {
-  const [stockList] = useState(MOCK_STOCK_OVERVIEW_DATA);
-  const [items] = useState(REAL_COMPANY_ITEMS);
-  const [locations] = useState(REAL_COMPANY_LOCATIONS);
-  const [categories] = useState(REAL_COMPANY_CATEGORIES);
+  const [stockList, setStockList] = useState([]);
+  const [items, setItems] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +37,31 @@ export const AvailableStockPage = () => {
   // Detail Drawer State
   const [selectedStockRecord, setSelectedStockRecord] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [stockRes, itemsRes, locationsRes, categoriesRes] = await Promise.all([
+        stockAPI.listStock(),
+        itemsAPI.listItems(),
+        locationsAPI.listLocations(),
+        categoriesAPI.listCategories(),
+      ]);
+      setStockList(stockRes || []);
+      setItems(itemsRes || []);
+      setLocations(locationsRes || []);
+      setCategories(categoriesRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load stock data from backend');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -52,15 +75,15 @@ export const AvailableStockPage = () => {
   // Filtered Stock List
   const filteredStock = useMemo(() => {
     return stockList.filter((row) => {
-      const matchesSearch =
-        !searchQuery ||
-        row.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.item_code.toLowerCase().includes(searchQuery.toLowerCase());
+      const itemName = row.item_name || '';
+      const sku = row.sku || row.item_code || '';
+      const q = searchQuery.toLowerCase();
 
+      const matchesSearch = !searchQuery || itemName.toLowerCase().includes(q) || sku.toLowerCase().includes(q);
       const matchesItem = !selectedItem || String(row.item_id) === selectedItem;
       const matchesLocation = !selectedLocation || String(row.location_id) === selectedLocation;
       const matchesCategory = !selectedCategory || String(row.category_id) === selectedCategory;
-      const matchesStatus = !selectedStatus || row.status === selectedStatus;
+      const matchesStatus = !selectedStatus || String(row.status).toLowerCase() === selectedStatus.toLowerCase();
 
       return (
         matchesSearch &&
@@ -75,10 +98,10 @@ export const AvailableStockPage = () => {
   // Compute Summary Metrics
   const summaryMetrics = useMemo(() => {
     const totalItems = new Set(stockList.map((s) => s.item_id)).size;
-    const totalStockQty = stockList.reduce((acc, curr) => acc + curr.available_quantity, 0);
-    const totalStockValue = stockList.reduce((acc, curr) => acc + curr.stock_value, 0);
-    const lowStockCount = stockList.filter((s) => s.status === 'Low Stock').length;
-    const outOfStockCount = stockList.filter((s) => s.status === 'Out of Stock').length;
+    const totalStockQty = stockList.reduce((acc, curr) => acc + Number(curr.current_quantity || curr.available_quantity || 0), 0);
+    const totalStockValue = stockList.reduce((acc, curr) => acc + Number(curr.total_valuation || curr.stock_value || 0), 0);
+    const lowStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('low')).length;
+    const outOfStockCount = stockList.filter((s) => String(s.status).toLowerCase().includes('out')).length;
 
     return {
       totalItems,
@@ -89,16 +112,18 @@ export const AvailableStockPage = () => {
     };
   }, [stockList]);
 
-  const handleViewDetails = (record) => {
-    setSelectedStockRecord(record);
+  const handleViewDetails = async (record) => {
+    try {
+      const detail = await stockAPI.getItemStock(record.item_id);
+      setSelectedStockRecord({ ...record, ...detail });
+    } catch {
+      setSelectedStockRecord(record);
+    }
     setDrawerOpen(true);
   };
 
   return (
     <div>
-      {/* Dev Role Switcher Bar */}
-      <DevRoleSwitcher />
-
       {/* Page Header */}
       <PageHeader
         title="Stock"
@@ -168,7 +193,13 @@ export const AvailableStockPage = () => {
 
       {/* Main Stock Table */}
       <Card>
-        <StockTable stockData={filteredStock} onViewDetails={handleViewDetails} />
+        {loading ? (
+          <LoadingState message="Loading inventory stock balances..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadData} />
+        ) : (
+          <StockTable stockData={filteredStock} onViewDetails={handleViewDetails} />
+        )}
       </Card>
 
       {/* Stock Detail Drawer Modal */}
