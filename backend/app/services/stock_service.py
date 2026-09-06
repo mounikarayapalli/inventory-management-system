@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
-from sqlalchemy import func, select
+from typing import List
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundException
@@ -11,8 +11,7 @@ from app.models.item import Item
 from app.models.location import Location
 from app.models.opening_stock import OpeningStock
 from app.models.inward_transaction import InwardTransaction
-from app.models.outward_transaction import OutwardTransaction
-from app.models.stock_movement import StockMovement
+from app.models.stock_movement import MovementType, StockMovement
 from app.schemas.stock import (
     LocationStockDetail,
     StockBreakdownSchema,
@@ -55,51 +54,123 @@ class StockService:
     def get_wac(self, db: Session, item_id: int, location_id: int) -> Decimal:
         """Calculate current Weighted Average Cost (WAC) for an Item at a Location.
 
-        Algorithm:
-        1. Reads Opening Stock for the item+location (baseline quantity and unit cost).
-        2. Iterates over all Inward transactions in chronological order:
-           new_wac = (prev_qty * prev_wac + in_qty * in_cost) / (prev_qty + in_qty)
-        3. Deducts Outward issues from available stock quantity without altering unit WAC.
-        4. If no receipts exist, falls back to the catalog item's default_unit_cost or 0.00.
+        Processes the stock ledger chronologically.
+
+        Rules:
+        - OPENING establishes the initial quantity and unit cost.
+        - INWARD increases quantity and recalculates WAC.
+        - OUTWARD decreases quantity but does not change WAC.
+        - RETURN increases quantity but does not change WAC.
+        - ADJUSTMENT changes quantity but does not change WAC.
+        - DISTRIBUTION has no movement and therefore has no WAC effect.
         """
-        # Baseline: Opening stock
-        op_stmt = (
-            select(OpeningStock)
+        movements_stmt = (
+            select(StockMovement)
             .where(
-                OpeningStock.item_id == item_id,
-                OpeningStock.location_id == location_id,
+                StockMovement.item_id == item_id,
+                StockMovement.location_id == location_id,
             )
-            .order_by(OpeningStock.opening_date.asc(), OpeningStock.opening_stock_id.asc())
-        )
-        opening = db.scalars(op_stmt).first()
+            .order_by(
+                StockMovement.movement_date.asc(),
+                StockMovement.movement_id.asc(),
+                )
+            )
+        movements = db.scalars(movements_stmt).all()
 
         current_qty = Decimal("0.00")
         current_wac = Decimal("0.00")
 
-        if opening is not None:
-            current_qty = to_decimal(opening.quantity)
-            current_wac = to_decimal(opening.unit_cost)
+        # Load source transactions referenced by the movement ledger.
+        opening_ids = [
+            mv.reference_id
+            for mv in movements
+            if str(mv.movement_type).upper() == MovementType.OPENING.value
+            and mv.reference_id is not None
+        ]
 
-        # Inward receipts
-        in_stmt = (
-            select(InwardTransaction)
-            .where(
-                InwardTransaction.item_id == item_id,
-                InwardTransaction.location_id == location_id,
-            )
-            .order_by(InwardTransaction.inward_date.asc(), InwardTransaction.inward_id.asc())
-        )
-        inwards = db.scalars(in_stmt).all()
+        inward_ids = [
+            mv.reference_id
+            for mv in movements
+            if str(mv.movement_type).upper() == MovementType.INWARD.value
+            and mv.reference_id is not None
+        ]
 
-        for in_tx in inwards:
-            in_qty = to_decimal(in_tx.quantity)
-            in_cost = to_decimal(in_tx.unit_cost)
-            current_wac = calculate_wac(current_qty, current_wac, in_qty, in_cost)
-            current_qty += in_qty
+        opening_map = {}
+        if opening_ids:
+            openings = db.scalars(
+                select(OpeningStock).where(
+                    OpeningStock.opening_stock_id.in_(opening_ids)
+                )
+            ).all()
+            opening_map = {
+                opening.opening_stock_id: opening
+                for opening in openings
+            }
 
-        # If still 0 and no receipts, fallback to default_unit_cost on Item
+        inward_map = {}
+        if inward_ids:
+            inwards = db.scalars(
+                select(InwardTransaction).where(
+                    InwardTransaction.inward_id.in_(inward_ids)
+                )
+            ).all()
+            inward_map = {
+                inward.inward_id: inward
+                for inward in inwards
+            }
+
+        for movement in movements:
+            movement_type = str(movement.movement_type).upper()
+            quantity = to_decimal(movement.quantity)
+
+            if movement_type == MovementType.OPENING.value:
+                opening = opening_map.get(movement.reference_id)
+
+                if opening is None:
+                    continue
+
+                current_qty = quantity
+                current_wac = to_decimal(opening.unit_cost)
+
+            elif movement_type == MovementType.INWARD.value:
+                inward = inward_map.get(movement.reference_id)
+
+                if inward is None:
+                    continue
+
+                inward_qty = quantity
+                inward_cost = to_decimal(inward.unit_cost)
+
+                current_wac = calculate_wac(
+                    current_qty,
+                    current_wac,
+                    inward_qty,
+                    inward_cost,
+                )
+                current_qty += inward_qty
+
+            elif movement_type == MovementType.OUTWARD.value:
+                current_qty -= quantity
+
+            elif movement_type == MovementType.RETURN.value:
+                current_qty += quantity
+
+            elif movement_type == MovementType.ADJUSTMENT.value:
+                current_qty += quantity
+
+            else:
+                raise NotFoundException(
+                    f"Unsupported stock movement type encountered: {movement_type}"
+                )
+
+            # Prevent tiny Decimal rounding residue.
+            if current_qty < Decimal("0"):
+                current_qty = Decimal("0.00")
+
+        # If there is no transaction-based cost, use the item's default cost.
         if current_wac == Decimal("0.00"):
             item = db.get(Item, item_id)
+
             if item and item.default_unit_cost is not None:
                 current_wac = to_decimal(item.default_unit_cost)
 
