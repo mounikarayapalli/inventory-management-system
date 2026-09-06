@@ -3,21 +3,23 @@ import {
   Package,
   Warehouse,
   IndianRupee,
-  ArrowDownLeft,
+  AlertTriangle,
+  AlertOctagon,
   ArrowUpRight,
-  GitFork,
+  TrendingUp,
 } from 'lucide-react';
 
 const iconMap = {
   Package,
   Warehouse,
   IndianRupee,
-  ArrowDownLeft,
+  AlertTriangle,
+  AlertOctagon,
   ArrowUpRight,
-  GitFork,
+  TrendingUp,
 };
 
-export const SummaryCard = ({ label, value, subtext, icon, color = 'primary' }) => {
+export const SummaryCard = ({ label, value, subtext, icon, color = 'primary', trend = '↑ 5%' }) => {
   const IconComponent = iconMap[icon] || Package;
 
   return (
@@ -25,13 +27,21 @@ export const SummaryCard = ({ label, value, subtext, icon, color = 'primary' }) 
       <div className="summary-card-header">
         <span className="summary-card-label">{label}</span>
         <div className={`summary-card-icon summary-icon-${color}`}>
-          <IconComponent size={20} />
+          <IconComponent size={19} />
         </div>
       </div>
-      <div className="summary-card-body">
+      
+      <div className="summary-card-main">
         <span className="summary-card-value">{value}</span>
-        {subtext && <p className="summary-card-subtext">{subtext}</p>}
+        {trend && (
+          <span className={`trend-badge ${color === 'warning' || color === 'error' ? 'warning' : 'up'}`}>
+            <TrendingUp size={11} />
+            {trend}
+          </span>
+        )}
       </div>
+      
+      {subtext && <p className="summary-card-subtext">{subtext}</p>}
     </div>
   );
 };

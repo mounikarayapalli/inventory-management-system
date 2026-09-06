@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu,
   Bell,
+  Search,
   User as UserIcon,
   Settings,
   LogOut,
@@ -10,7 +11,6 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useRole } from '../../context/RoleContext';
-import CaliboLogo from '../common/CaliboLogo';
 
 export const Navbar = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ export const Navbar = ({ onToggleSidebar }) => {
   };
 
   const displayName = user?.full_name || user?.username || 'Authenticated User';
-  const displayEmail = user?.email || `${user?.username || 'user'}@inventory.internal`;
+  const displayEmail = user?.email || `${user?.username || 'user'}@calibo.com`;
   const initials = displayName
     .split(' ')
     .map((n) => n[0])
@@ -67,16 +67,19 @@ export const Navbar = ({ onToggleSidebar }) => {
           <Menu size={20} />
         </button>
 
-        <div className="navbar-context-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CaliboLogo size="sm" layout="icon" />
-          <span className="context-brand">Calibo AI Academy</span>
-          <span className="context-divider">/</span>
-          <span className="context-app">Inventory Manager</span>
+        {/* Desktop Search Bar matching reference image */}
+        <div className="navbar-search-container">
+          <Search size={16} className="navbar-search-icon" />
+          <input
+            type="text"
+            className="navbar-search-input"
+            placeholder="Search anything..."
+          />
         </div>
       </div>
 
       <div className="navbar-right">
-        {/* Notification Icon Placeholder */}
+        {/* Notification Icon Button */}
         <button
           className="navbar-icon-btn"
           aria-label="System notifications"
@@ -87,7 +90,7 @@ export const Navbar = ({ onToggleSidebar }) => {
         </button>
 
         {/* User Profile Area with Interactive Dropdown */}
-        <div className="user-profile-container" ref={dropdownRef}>
+        <div className="user-profile-container" ref={dropdownRef} style={{ position: 'relative' }}>
           <button
             className="user-profile-badge"
             onClick={() => setProfileDropdownOpen((prev) => !prev)}
@@ -103,7 +106,7 @@ export const Navbar = ({ onToggleSidebar }) => {
                 {activeRole}
               </span>
             </div>
-            <ChevronDown size={14} className={`profile-chevron ${profileDropdownOpen ? 'open' : ''}`} />
+            <ChevronDown size={14} className={`profile-chevron ${profileDropdownOpen ? 'open' : ''}`} style={{ marginLeft: '4px', color: 'var(--neutral-400)' }} />
           </button>
 
           {/* Profile Dropdown Menu */}
