@@ -1023,6 +1023,124 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Table Component */
+.desktop-table-container {
+  display: block;
+  width: 100%;
+}
+
+.mobile-card-list {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .desktop-table-container {
+    display: none;
+  }
+
+  .mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .mobile-stock-card {
+    background-color: #ffffff;
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--border-radius-lg);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-stock-card:hover {
+    border-color: var(--primary-500);
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-sku-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-700);
+    background-color: var(--primary-50);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+  }
+
+  .card-item-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+    margin-bottom: 0.5rem;
+  }
+
+  .card-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--neutral-600);
+    background-color: var(--neutral-100);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+  }
+
+  .card-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: var(--neutral-50);
+    border-radius: var(--border-radius-md);
+    margin-bottom: 0.75rem;
+  }
+
+  .metric-box {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .metric-label {
+    font-size: 0.7rem;
+    color: var(--neutral-500);
+    text-transform: uppercase;
+  }
+
+  .metric-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+  }
+
+  .metric-value.highlight {
+    color: var(--primary-600);
+  }
+
+  .card-footer-action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-600);
+  }
+}
+
 .table-container {
   width: 100%;
   overflow-x: auto;
