@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Select from '../common/Select';
-import { getMockAvailableStock } from '../../constants/mockStockData';
+import stockAPI from '../../api/stock';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export const OutwardFormModal = ({
@@ -27,11 +27,27 @@ export const OutwardFormModal = ({
   const [availableStock, setAvailableStock] = useState(0);
   const [errors, setErrors] = useState({});
 
+  const fetchLiveStock = useCallback(async (itemId, locId) => {
+    if (!itemId || !locId) {
+      setAvailableStock(0);
+      return;
+    }
+    try {
+      const stockList = await stockAPI.listStock();
+      const match = (stockList || []).find(
+        (s) => String(s.item_id) === String(itemId) && String(s.location_id) === String(locId)
+      );
+      const qty = match ? Number(match.current_quantity ?? match.available_quantity ?? match.quantity_on_hand ?? 0) : 0;
+      setAvailableStock(qty);
+    } catch {
+      setAvailableStock(0);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
-      const defaultItemId = items.length > 0 ? String(items[0].id) : '';
-      const defaultLocId = locations.length > 0 ? String(locations[0].id) : '';
-      const stock = getMockAvailableStock(defaultItemId, defaultLocId);
+      const defaultItemId = items.length > 0 ? String(items[0].id || items[0].item_id) : '';
+      const defaultLocId = locations.length > 0 ? String(locations[0].id || locations[0].location_id) : '';
 
       setFormData({
         outward_no: 'OUT-' + Math.floor(1000 + Math.random() * 9000),
@@ -43,26 +59,21 @@ export const OutwardFormModal = ({
         outward_date: new Date().toISOString().split('T')[0],
         remarks: '',
       });
-      setAvailableStock(stock);
+      fetchLiveStock(defaultItemId, defaultLocId);
       setErrors({});
     }
-  }, [isOpen, items, locations]);
-
-  const updateAvailableStock = (itemId, locId) => {
-    const stock = getMockAvailableStock(itemId, locId);
-    setAvailableStock(stock);
-  };
+  }, [isOpen, items, locations, fetchLiveStock]);
 
   const handleItemChange = (e) => {
     const val = e.target.value;
     setFormData((prev) => ({ ...prev, item_id: val }));
-    updateAvailableStock(val, formData.location_id);
+    fetchLiveStock(val, formData.location_id);
   };
 
   const handleLocationChange = (e) => {
     const val = e.target.value;
     setFormData((prev) => ({ ...prev, location_id: val }));
-    updateAvailableStock(formData.item_id, val);
+    fetchLiveStock(formData.item_id, val);
   };
 
   const isExceedingStock =
@@ -99,13 +110,13 @@ export const OutwardFormModal = ({
   };
 
   const itemOptions = items.map((i) => ({
-    value: String(i.id),
-    label: `${i.item_code} - ${i.item_name}`,
+    value: String(i.id || i.item_id),
+    label: `${i.item_code || i.sku} - ${i.item_name || i.name}`,
   }));
 
   const locationOptions = locations.map((l) => ({
-    value: String(l.id),
-    label: l.location_name,
+    value: String(l.id || l.location_id),
+    label: l.location_name || l.name,
   }));
 
   const footer = (
