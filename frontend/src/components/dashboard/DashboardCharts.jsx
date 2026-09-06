@@ -141,9 +141,18 @@ export const DashboardCharts = ({
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--neutral-200)" />
-                  <XAxis dataKey="categoryName" tick={{ fontSize: 12, fill: 'var(--neutral-600)' }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="categoryName"
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    height={50}
+                    tick={{ fontSize: 10.5, fill: 'var(--neutral-700)' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <YAxis yAxisId="units" orientation="left" tick={{ fontSize: 12, fill: 'var(--neutral-600)' }} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="value" orientation="right" tick={{ fontSize: 11, fill: 'var(--neutral-500)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                   <Tooltip content={<CustomTooltip formatter={(val, name) => (name.includes('Valuation') ? `₹${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : `${val} units`)} />} />
@@ -217,7 +226,7 @@ export const DashboardCharts = ({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={locationChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--neutral-200)" />
-                  <XAxis dataKey="locationName" tick={{ fontSize: 12, fill: 'var(--neutral-600)' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="locationName" interval={0} tick={{ fontSize: 11, fill: 'var(--neutral-700)' }} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="units" tick={{ fontSize: 12, fill: 'var(--neutral-600)' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip formatter={(val, name) => (name.includes('Valuation') ? `₹${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : `${val} units`)} />} />
                   <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '0.8rem' }} />
