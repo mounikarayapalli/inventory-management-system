@@ -11,6 +11,8 @@ export const MovementFilters = ({
   onItemChange,
   selectedLocation,
   onLocationChange,
+  selectedCategory,
+  onCategoryChange,
   selectedType,
   onTypeChange,
   dateFrom,
@@ -22,15 +24,24 @@ export const MovementFilters = ({
   onReset,
   items = [],
   locations = [],
+  categories = [],
 }) => {
   const itemOptions = [
     { value: '', label: 'All Items' },
-    ...items.map((i) => ({ value: String(i.id), label: `${i.item_code} - ${i.item_name}` })),
+    ...items.map((i) => ({
+      value: String(i.item_id ?? i.id),
+      label: i.item_code || i.sku ? `${i.item_code || i.sku} - ${i.item_name}` : i.item_name,
+    })),
   ];
 
   const locationOptions = [
     { value: '', label: 'All Locations' },
-    ...locations.map((l) => ({ value: String(l.id), label: l.location_name })),
+    ...locations.map((l) => ({ value: String(l.location_id ?? l.id), label: l.location_name })),
+  ];
+
+  const categoryOptions = [
+    { value: '', label: 'All Categories' },
+    ...categories.map((c) => ({ value: String(c.category_id ?? c.id), label: c.category_name })),
   ];
 
   const typeOptions = [
@@ -74,6 +85,13 @@ export const MovementFilters = ({
           options={locationOptions}
           value={selectedLocation}
           onChange={(e) => onLocationChange(e.target.value)}
+        />
+
+        <Select
+          label="Category"
+          options={categoryOptions}
+          value={selectedCategory}
+          onChange={(e) => onCategoryChange(e.target.value)}
         />
 
         <Select

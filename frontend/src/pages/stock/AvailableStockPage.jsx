@@ -29,9 +29,9 @@ export const AvailableStockPage = () => {
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItem, setSelectedItem] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedItem, setSelectedItem] = useState('__placeholder__');
+  const [selectedLocation, setSelectedLocation] = useState('__placeholder__');
+  const [selectedCategory, setSelectedCategory] = useState('__placeholder__');
   const [selectedStatus, setSelectedStatus] = useState('');
 
   // Detail Drawer State
@@ -100,9 +100,9 @@ export const AvailableStockPage = () => {
   // Reset Filters
   const handleResetFilters = () => {
     setSearchQuery('');
-    setSelectedItem('');
-    setSelectedLocation('');
-    setSelectedCategory('');
+    setSelectedItem('__placeholder__');
+    setSelectedLocation('__placeholder__');
+    setSelectedCategory('__placeholder__');
     setSelectedStatus('');
   };
 
@@ -114,9 +114,9 @@ export const AvailableStockPage = () => {
       const q = searchQuery.toLowerCase();
 
       const matchesSearch = !searchQuery || itemName.toLowerCase().includes(q) || sku.toLowerCase().includes(q);
-      const matchesItem = !selectedItem || String(row.item_id) === selectedItem;
-      const matchesLocation = !selectedLocation || String(row.location_id) === selectedLocation;
-      const matchesCategory = !selectedCategory || String(row.category_id) === selectedCategory;
+      const matchesItem = !selectedItem || selectedItem === '__placeholder__' || String(row.item_id) === selectedItem;
+      const matchesLocation = !selectedLocation || selectedLocation === '__placeholder__' || String(row.location_id) === selectedLocation;
+      const matchesCategory = !selectedCategory || selectedCategory === '__placeholder__' || String(row.category_id) === selectedCategory;
       const normStatus = String(row.status || '').toLowerCase().replace(/_/g, ' ');
       const normFilter = selectedStatus.toLowerCase().replace(/_/g, ' ');
       const matchesStatus = !selectedStatus || normStatus.includes(normFilter);

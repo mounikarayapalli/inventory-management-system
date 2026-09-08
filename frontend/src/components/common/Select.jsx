@@ -12,9 +12,12 @@ export const Select = ({
   onChange,
   disabled = false,
   className = '',
+  placeholderValue = '__placeholder__',
   ...props
 }) => {
   const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+  const hasEmptyOption = options.some((opt) => opt.value === '');
+  const pVal = hasEmptyOption ? (placeholderValue || '__placeholder__') : '';
 
   return (
     <div className="form-group">
@@ -33,7 +36,7 @@ export const Select = ({
         {...props}
       >
         {placeholder && (
-          <option value="" disabled>
+          <option value={pVal} disabled>
             {placeholder}
           </option>
         )}

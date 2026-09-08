@@ -22,7 +22,10 @@ export const StockFilters = ({
 }) => {
   const itemOptions = [
     { value: '', label: 'All Items' },
-    ...items.map((i) => ({ value: String(i.item_id ?? i.id), label: `${i.item_code} - ${i.item_name}` })),
+    ...items.map((i) => ({
+      value: String(i.item_id ?? i.id),
+      label: i.item_code ? `${i.item_code} - ${i.item_name}` : i.item_name,
+    })),
   ];
 
   const locationOptions = [
